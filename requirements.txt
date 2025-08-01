@@ -1,0 +1,7 @@
+acme>=2.6.0
+azure-keyvault-certificates>=4.7.0
+azure-identity>=1.14.0
+azure-mgmt-dns>=8.0.0
+cryptography>=41.0.0
+requests>=2.31.0
+josepy>=1.13.0
