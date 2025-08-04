@@ -1,111 +1,124 @@
 # Azure Let's Encrypt Certificate Manager
 
-自动获取Let's Encrypt SSL证书并上传到Azure Key Vault的Python工具。
+Automatically obtain Let's Encrypt SSL certificates and upload them to Azure Key Vault using Python.
 
-## 功能特性
+[中文文档 / Chinese Documentation](README_CN.md)
 
-- 使用DNS-01挑战自动获取Let's Encrypt证书
-- 支持通配符证书（*.domain.com）
-- 自动管理Azure DNS TXT记录
-- 证书自动上传到Azure Key Vault
-- 本地证书备份（按年月分类）
-- **智能证书更新**：自动检查证书过期时间，仅在需要时更新
+## Features
 
-## 环境要求
+- Automatically obtain Let's Encrypt certificates using DNS-01 challenge
+- Support for wildcard certificates (*.domain.com)
+- Automatic Azure DNS TXT record management
+- Automatic certificate upload to Azure Key Vault
+- Local certificate backup (organized by year-month)
+- **Smart certificate renewal**: Automatically check certificate expiry time, only renew when needed
+- Generate PFX files with password protection
+
+## Requirements
 
 - Python 3.7+
-- Azure订阅
-- Azure DNS区域
+- Azure subscription
+- Azure DNS zone
 - Azure Key Vault
-- Azure Service Principal（应用程序注册）
+- Azure Service Principal (App Registration)
 
-## 安装依赖
+## Installation
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## 配置
+## Configuration
 
-1. 复制配置示例文件：
+1. Copy the example configuration file:
 ```bash
 cp config.example.json config.json
 ```
 
-2. 编辑 `config.json`，填入你的实际配置：
-   - ACME邮箱和域名
-   - Azure Key Vault信息
-   - Azure DNS配置
-   - Azure身份认证信息
+2. Edit `config.json` with your actual configuration:
+   - ACME email and domains
+   - Azure Key Vault information
+   - Azure DNS configuration
+   - Azure authentication information
 
-## Azure权限配置
+## Azure Permissions
 
-确保你的Azure Service Principal具有以下权限：
+Ensure your Azure Service Principal has the following permissions:
 
-1. **DNS Zone Contributor** - 用于管理DNS记录
-2. **Key Vault Certificate Officer** - 用于上传证书
+1. **DNS Zone Contributor** - For managing DNS records
+2. **Key Vault Certificate Officer** - For uploading certificates
 
-## 使用方法
+## Usage
 
-### 基本使用
+### Basic Usage
 ```bash
 python cert_manager.py
 ```
 
-### 命令行参数
+### Command Line Arguments
 ```bash
-# 强制更新证书（忽略过期检查）
+# Force certificate renewal (ignore expiry check)
 python cert_manager.py --force
 
-# 设置证书过期前15天开始更新
+# Set renewal to start 15 days before expiry
 python cert_manager.py --days 15
 
-# 组合使用
+# Combined usage
 python cert_manager.py --force --days 15
 ```
 
-## 配置说明
+### Generate PFX Files
+```bash
+# Generate PFX files with password protection
+python create_pfx.py
 
-### ACME配置
-- `email`: Let's Encrypt账户邮箱
-- `domains`: 要申请证书的域名列表
-- `directory_url`: ACME服务器地址
+# Verify PFX file integrity
+python verify_pfx.py
+```
 
-### Azure配置
+## Configuration Reference
+
+### ACME Configuration
+- `email`: Let's Encrypt account email
+- `domains`: List of domains to request certificates for
+- `directory_url`: ACME server address
+
+### Azure Configuration
 - `key_vault_url`: Key Vault URL
-- `tenant_id`: Azure租户ID
-- `client_id`: 应用程序ID
-- `client_secret`: 应用程序密钥
-- `certificate_name`: 证书在Key Vault中的名称
+- `tenant_id`: Azure tenant ID
+- `client_id`: Application ID
+- `client_secret`: Application secret
+- `certificate_name`: Certificate name in Key Vault
 
-### DNS配置
-- `provider`: DNS提供商（目前支持azure）
-- `subscription_id`: Azure订阅ID
-- `resource_group`: DNS区域所在资源组
-- `zone_name`: DNS区域名称
+### DNS Configuration
+- `provider`: DNS provider (currently supports azure)
+- `subscription_id`: Azure subscription ID
+- `resource_group`: Resource group containing DNS zone
+- `zone_name`: DNS zone name
 
-## 自动化部署
+## Automation
 
-### Windows 定时任务
+### Windows Scheduled Task
 ```cmd
-# 每天检查一次，仅在需要时更新
+# Check daily, only renew when needed
 schtasks /create /tn "SSL Certificate Update" /tr "python E:\path\to\cert_manager.py" /sc daily
 ```
 
 ### Linux Cron
 ```bash
-# 每天凌晨2点检查
+# Check daily at 2 AM
 0 2 * * * cd /path/to/cert_update && python cert_manager.py
 ```
 
-## 注意事项
+## Notes
 
-- 确保DNS区域已正确配置
-- Service Principal需要适当的权限
-- 证书有效期为90天，默认在过期前30天自动更新
-- 配置文件包含敏感信息，请勿提交到版本控制
-- 程序会自动检查证书状态，仅在必要时才会更新
+- Ensure DNS zone is properly configured
+- Service Principal needs appropriate permissions
+- Certificates are valid for 90 days, default renewal 30 days before expiry
+- Configuration file contains sensitive information, do not commit to version control
+- Program automatically checks certificate status, only renews when necessary
+- PFX files are generated with password "1234" by default
 
-## 许可证
+## License
 
 MIT License
