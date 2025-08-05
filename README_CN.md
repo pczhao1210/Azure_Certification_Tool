@@ -12,7 +12,8 @@
 - 证书自动上传到Azure Key Vault
 - 本地证书备份（按年月分类）
 - **智能证书更新**：自动检查证书过期时间，仅在需要时更新
-- 生成带密码保护的PFX文件
+- **自动生成PFX文件**：默认生成带密码保护的PFX文件
+- **证书链验证**：内置证书链完整性验证功能
 
 ## 环境要求
 
@@ -63,17 +64,23 @@ python cert_manager.py --force
 # 设置证书过期前15天开始更新
 python cert_manager.py --days 15
 
+# 验证证书链完整性
+python cert_manager.py --verify-chain
+
+# 验证PFX文件完整性
+python cert_manager.py --verify-pfx
+
 # 组合使用
 python cert_manager.py --force --days 15
 ```
 
-### 生成PFX文件
+### 证书验证
 ```bash
-# 生成带密码保护的PFX文件
-python create_pfx.py
+# 验证证书链完整性
+python cert_manager.py --verify-chain
 
 # 验证PFX文件完整性
-python verify_pfx.py
+python cert_manager.py --verify-pfx
 ```
 
 ## 配置说明
@@ -117,7 +124,9 @@ schtasks /create /tn "SSL Certificate Update" /tr "python E:\path\to\cert_manage
 - 证书有效期为90天，默认在过期前30天自动更新
 - 配置文件包含敏感信息，请勿提交到版本控制
 - 程序会自动检查证书状态，仅在必要时才会更新
-- PFX文件默认使用密码"1234"生成
+- 自动生成PFX文件，默认密码为"1234"
+- 内置证书链验证，确保证书包含完整的信任链
+- 支持证书链和PFX文件的独立验证
 
 ## 许可证
 

@@ -14,6 +14,9 @@ from azure.mgmt.dns import DnsManagementClient
 from azure.core.exceptions import ResourceNotFoundError
 import time
 import base64
+import ssl
+import socket
+import glob
 
 class CertificateManager:
     def __init__(self, config_path="config.json"):
@@ -341,6 +344,46 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
         print(f"证书已成功上传到Key Vault / Certificate successfully uploaded to Key Vault: {self.config['azure']['certificate_name']}")
         print(f"证书链包含 {len(cert_objects)} 个证书 / Certificate chain contains {len(cert_objects)} certificates")
 
+    def create_pfx(self, certificate_pem, private_key_pem, cert_dir, password="1234"):
+        """生成PFX文件 / Generate PFX file"""
+        from cryptography.hazmat.primitives.serialization import pkcs12
+        
+        # 解析证书链 / Parse certificate chain
+        cert_objects = []
+        cert_blocks = certificate_pem.split('-----END CERTIFICATE-----')
+        
+        for block in cert_blocks:
+            if '-----BEGIN CERTIFICATE-----' in block:
+                cert_pem = block + '-----END CERTIFICATE-----'
+                cert_obj = x509.load_pem_x509_certificate(cert_pem.encode())
+                cert_objects.append(cert_obj)
+        
+        if not cert_objects:
+            raise ValueError("未找到有效证书 / No valid certificates found")
+        
+        # 解析私钥 / Parse private key
+        private_key = serialization.load_pem_private_key(private_key_pem.encode(), password=None)
+        
+        # 创建PFX / Create PFX
+        main_cert = cert_objects[0]
+        ca_certs = cert_objects[1:] if len(cert_objects) > 1 else None
+        
+        pfx_data = pkcs12.serialize_key_and_certificates(
+            name=b"certificate",
+            key=private_key,
+            cert=main_cert,
+            cas=ca_certs,
+            encryption_algorithm=serialization.BestAvailableEncryption(password.encode())
+        )
+        
+        # 保存PFX文件 / Save PFX file
+        pfx_file = os.path.join(cert_dir, "certificate.pfx")
+        with open(pfx_file, 'wb') as f:
+            f.write(pfx_data)
+        
+        print(f"PFX文件已生成 / PFX file generated: {pfx_file}")
+        return pfx_file
+
     def save_certificates_locally(self, certificate_pem, private_key_pem):
         """保存证书到本地cert/yyyy-mm目录 / Save certificates to local cert/yyyy-mm directory"""
         # 创建目录路径 / Create directory path
@@ -363,10 +406,115 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
         # 验证证书链完整性 / Verify certificate chain integrity
         cert_count = certificate_pem.count('-----BEGIN CERTIFICATE-----')
         print(f"证书链包含 {cert_count} 个证书 / Certificate chain contains {cert_count} certificates")
+        
+        # 生成PFX文件 / Generate PFX file
+        self.create_pfx(certificate_pem, private_key_pem, cert_dir)
+        
+        return cert_dir
 
-    def run(self, force_renewal=False):
+    def verify_cert_chain(self, cert_file_path):
+        """验证证书链完整性 / Verify certificate chain integrity"""
+        try:
+            with open(cert_file_path, 'r') as f:
+                cert_data = f.read()
+            
+            cert_count = cert_data.count('-----BEGIN CERTIFICATE-----')
+            print(f"证书文件包含 {cert_count} 个证书 / Certificate file contains {cert_count} certificates")
+            
+            cert_blocks = cert_data.split('-----END CERTIFICATE-----')
+            certificates = []
+            
+            for i, block in enumerate(cert_blocks):
+                if '-----BEGIN CERTIFICATE-----' in block:
+                    cert_pem = block + '-----END CERTIFICATE-----'
+                    try:
+                        cert = x509.load_pem_x509_certificate(cert_pem.encode())
+                        certificates.append(cert)
+                        
+                        subject = cert.subject.rfc4514_string()
+                        issuer = cert.issuer.rfc4514_string()
+                        print(f"证书 {i+1} / Certificate {i+1}:")
+                        print(f"  主题 / Subject: {subject}")
+                        print(f"  颁发者 / Issuer: {issuer}")
+                        print(f"  有效期 / Valid: {cert.not_valid_before} 到 / to {cert.not_valid_after}")
+                        print()
+                    except Exception as e:
+                        print(f"解析证书 {i+1} 时出错 / Error parsing certificate {i+1}: {e}")
+            
+            return len(certificates) >= 3
+        except Exception as e:
+            print(f"验证证书链时出错 / Error verifying certificate chain: {e}")
+            return False
+
+    def verify_pfx(self, pfx_path, password="1234"):
+        """验证PFX文件 / Verify PFX file"""
+        try:
+            from cryptography.hazmat.primitives.serialization import pkcs12
+            
+            with open(pfx_path, 'rb') as f:
+                pfx_data = f.read()
+            
+            private_key, certificate, additional_certificates = pkcs12.load_key_and_certificates(
+                pfx_data, password.encode()
+            )
+            
+            print(f"PFX文件验证 / PFX file verification: {pfx_path}")
+            print(f"密码验证 / Password verification: 成功 / Success")
+            
+            if certificate:
+                subject = certificate.subject.rfc4514_string()
+                issuer = certificate.issuer.rfc4514_string()
+                print(f"\n主证书 / Main certificate:")
+                print(f"  主题 / Subject: {subject}")
+                print(f"  颁发者 / Issuer: {issuer}")
+                print(f"  有效期 / Valid: {certificate.not_valid_before} 到 / to {certificate.not_valid_after}")
+            
+            if additional_certificates:
+                print(f"\n中间证书 / Intermediate certificates ({len(additional_certificates)} 个 / certificates):")
+                for i, cert in enumerate(additional_certificates, 1):
+                    subject = cert.subject.rfc4514_string()
+                    issuer = cert.issuer.rfc4514_string()
+                    print(f"  证书 {i} / Certificate {i}:")
+                    print(f"    主题 / Subject: {subject}")
+                    print(f"    颁发者 / Issuer: {issuer}")
+            
+            all_certs = [certificate] + (additional_certificates or [])
+            print(f"\n总证书数量 / Total certificates: {len(all_certs)}")
+            
+            return True
+        except Exception as e:
+            print(f"验证PFX文件时出错 / Error verifying PFX file: {e}")
+            return False
+
+    def run(self, force_renewal=False, verify_chain=False, verify_pfx_files=False):
         """执行完整的证书获取和上传流程 / Execute complete certificate acquisition and upload process"""
         try:
+            # 验证证书链 / Verify certificate chain
+            if verify_chain:
+                print("=== 验证证书链 / Verifying Certificate Chain ===")
+                cert_files = glob.glob("cert/**/certificate.pem", recursive=True)
+                if cert_files:
+                    for cert_file in cert_files:
+                        print(f"\n验证文件 / Verifying file: {cert_file}")
+                        self.verify_cert_chain(cert_file)
+                        print("-" * 50)
+                else:
+                    print("未找到证书文件 / No certificate files found")
+                return
+            
+            # 验证PFX文件 / Verify PFX files
+            if verify_pfx_files:
+                print("=== 验证PFX文件 / Verifying PFX Files ===")
+                pfx_files = glob.glob("cert/**/certificate.pfx", recursive=True)
+                if pfx_files:
+                    for pfx_file in pfx_files:
+                        print(f"\n验证文件 / Verifying file: {pfx_file}")
+                        self.verify_pfx(pfx_file)
+                        print("-" * 50)
+                else:
+                    print("未找到PFX文件 / No PFX files found")
+                return
+            
             print("检查证书状态... / Checking certificate status...")
             
             # 检查证书是否需要更新 / Check if certificate needs renewal
@@ -378,7 +526,7 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
             certificate_pem, private_key_pem = self.get_certificate()
             
             print("证书获取成功，正在保存到本地... / Certificate obtained successfully, saving locally...")
-            self.save_certificates_locally(certificate_pem, private_key_pem)
+            cert_dir = self.save_certificates_locally(certificate_pem, private_key_pem)
             
             print("证书获取成功，正在上传到Azure Key Vault... / Certificate obtained successfully, uploading to Azure Key Vault...")
             self.upload_to_keyvault(certificate_pem, private_key_pem)
@@ -397,6 +545,10 @@ if __name__ == "__main__":
                        help='强制更新证书，忽略过期检查 / Force certificate renewal, ignore expiry check')
     parser.add_argument('--days', '-d', type=int, default=30,
                        help='证书过期前多少天开始更新（默认: 30天） / Days before expiry to start renewal (default: 30 days)')
+    parser.add_argument('--verify-chain', action='store_true',
+                       help='验证证书链完整性 / Verify certificate chain integrity')
+    parser.add_argument('--verify-pfx', action='store_true',
+                       help='验证PFX文件 / Verify PFX files')
     
     args = parser.parse_args()
     
@@ -407,4 +559,4 @@ if __name__ == "__main__":
         original_check = manager.check_certificate_expiry
         manager.check_certificate_expiry = lambda: original_check(args.days)
     
-    manager.run(force_renewal=args.force)
+    manager.run(force_renewal=args.force, verify_chain=args.verify_chain, verify_pfx_files=args.verify_pfx)

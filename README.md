@@ -12,7 +12,8 @@ Automatically obtain Let's Encrypt SSL certificates and upload them to Azure Key
 - Automatic certificate upload to Azure Key Vault
 - Local certificate backup (organized by year-month)
 - **Smart certificate renewal**: Automatically check certificate expiry time, only renew when needed
-- Generate PFX files with password protection
+- **Automatic PFX generation**: Generate password-protected PFX files by default
+- **Certificate chain validation**: Built-in certificate chain integrity verification
 
 ## Requirements
 
@@ -63,17 +64,23 @@ python cert_manager.py --force
 # Set renewal to start 15 days before expiry
 python cert_manager.py --days 15
 
+# Verify certificate chain integrity
+python cert_manager.py --verify-chain
+
+# Verify PFX file integrity
+python cert_manager.py --verify-pfx
+
 # Combined usage
 python cert_manager.py --force --days 15
 ```
 
-### Generate PFX Files
+### Certificate Verification
 ```bash
-# Generate PFX files with password protection
-python create_pfx.py
+# Verify certificate chain integrity
+python cert_manager.py --verify-chain
 
 # Verify PFX file integrity
-python verify_pfx.py
+python cert_manager.py --verify-pfx
 ```
 
 ## Configuration Reference
@@ -117,7 +124,9 @@ schtasks /create /tn "SSL Certificate Update" /tr "python E:\path\to\cert_manage
 - Certificates are valid for 90 days, default renewal 30 days before expiry
 - Configuration file contains sensitive information, do not commit to version control
 - Program automatically checks certificate status, only renews when necessary
-- PFX files are generated with password "1234" by default
+- PFX files are automatically generated with password "1234" by default
+- Built-in certificate chain validation ensures complete trust chain
+- Supports independent verification of certificate chains and PFX files
 
 ## License
 
