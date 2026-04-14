@@ -102,6 +102,13 @@ python cert_manager.py --verify-pfx
 - `subscription_id`: Azure订阅ID
 - `resource_group`: DNS区域所在资源组
 - `zone_name`: DNS区域名称
+- `challenge_zone_name`: 可选。专用于 `_acme-challenge` 的独立 DNS 区域，推荐配置为 `_acme-challenge.example.com`，并在父区域做 NS 委派
+- `challenge_resource_group`: 可选。若 challenge 专用区域不在 `resource_group`，可单独指定其资源组
+
+### 推荐的DNS策略
+- 保留 `_acme-challenge` TXT 记录集，不再每次验证后整条删除。工具现在只移除本次验证值，并保留一个占位 TXT 以避免 NXDOMAIN 负缓存。
+- 为提高稳定性，建议使用独立的 challenge 区域，例如 `_acme-challenge.example.com`，在父区域完成 NS 委派后，通过 `challenge_zone_name` 启用。
+- 在向 Let's Encrypt 提交 challenge 之前，工具现在会等待全部权威 NS 和多个公共递归 DNS 都看到所有 challenge TXT 值，并额外经过一小段稳定观察窗口后才继续。
 
 ## 自动化部署
 
@@ -120,6 +127,7 @@ schtasks /create /tn "SSL Certificate Update" /tr "python E:\path\to\cert_manage
 ## 注意事项
 
 - 确保DNS区域已正确配置
+- 如果配置了 `challenge_zone_name`，请先在父区域把 `_acme-challenge.<domain>` 委派到该独立区域
 - Service Principal需要适当的权限
 - 证书有效期为90天，默认在过期前30天自动更新
 - 配置文件包含敏感信息，请勿提交到版本控制

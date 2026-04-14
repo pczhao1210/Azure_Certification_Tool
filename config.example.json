@@ -11,10 +11,13 @@
     "client_secret": "your-client-secret",
     "certificate_name": "your-ssl-certificate"
   },
+  "pfx_password": "your-strong-pfx-password",
   "dns": {
     "provider": "azure",
     "subscription_id": "your-subscription-id",
     "resource_group": "your-resource-group",
-    "zone_name": "example.com"
+    "zone_name": "example.com",
+    "challenge_zone_name": null,
+    "challenge_resource_group": null
   }
 }

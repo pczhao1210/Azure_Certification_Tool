@@ -102,6 +102,13 @@ python cert_manager.py --verify-pfx
 - `subscription_id`: Azure subscription ID
 - `resource_group`: Resource group containing DNS zone
 - `zone_name`: DNS zone name
+- `challenge_zone_name`: Optional dedicated DNS zone for `_acme-challenge` records. Recommended value: `_acme-challenge.example.com` with NS delegation from the parent zone
+- `challenge_resource_group`: Optional resource group for the dedicated challenge zone if it differs from `resource_group`
+
+### Recommended DNS Strategy
+- Keep `_acme-challenge` TXT records alive instead of deleting the whole record set. This tool now removes only the current validation values and keeps a placeholder TXT value to avoid NXDOMAIN negative caching.
+- For better reliability, use a dedicated validation zone such as `_acme-challenge.example.com`, delegate it from the parent zone, and configure `challenge_zone_name` accordingly.
+- Before responding to Let's Encrypt, the tool now waits until all authoritative NS and multiple public recursive DNS servers can see all challenge TXT values, then keeps a short stability window before submitting the challenge.
 
 ## Automation
 
@@ -120,6 +127,7 @@ schtasks /create /tn "SSL Certificate Update" /tr "python E:\path\to\cert_manage
 ## Notes
 
 - Ensure DNS zone is properly configured
+- If you configure `challenge_zone_name`, delegate `_acme-challenge.<domain>` from the parent zone to that dedicated zone before running the tool
 - Service Principal needs appropriate permissions
 - Certificates are valid for 90 days, default renewal 30 days before expiry
 - Configuration file contains sensitive information, do not commit to version control
