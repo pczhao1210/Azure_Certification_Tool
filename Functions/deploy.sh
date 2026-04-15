@@ -32,6 +32,20 @@ Required environment variables for ARM provisioning:
   DNS_ZONE_NAME
 
 Optional environment variables:
+  STORAGE_MODE
+  STORAGE_SUBSCRIPTION_ID
+  STORAGE_RESOURCE_GROUP
+  STORAGE_ACCOUNT_RESOURCE_ID
+  DEPLOYMENT_CONTAINER_NAME
+  LOG_ANALYTICS_MODE
+  LOG_ANALYTICS_SUBSCRIPTION_ID
+  LOG_ANALYTICS_RESOURCE_GROUP
+  LOG_ANALYTICS_RESOURCE_ID
+  APPINSIGHTS_MODE
+  APPLICATION_INSIGHTS_SUBSCRIPTION_ID
+  APPLICATION_INSIGHTS_RESOURCE_GROUP
+  APPLICATION_INSIGHTS_RESOURCE_ID
+  APPLICATION_INSIGHTS_CONNECTION_STRING
   DNS_SUBSCRIPTION_ID
   DNS_CHALLENGE_ZONE_NAME
   DNS_CHALLENGE_RESOURCE_GROUP
@@ -139,10 +153,35 @@ if [[ "$SKIP_INFRA" != "true" ]]; then
   fi
 fi
 
-SUBSCRIPTION_ID="${DNS_SUBSCRIPTION_ID:-$(az account show --query id -o tsv)}"
+CURRENT_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+SUBSCRIPTION_ID="${DNS_SUBSCRIPTION_ID:-$CURRENT_SUBSCRIPTION_ID}"
 PLAN_NAME="${PLAN_NAME:-${APP_NAME}-plan}"
 LOG_ANALYTICS_NAME="${LOG_ANALYTICS_NAME:-${APP_NAME}-logs}"
 APPLICATION_INSIGHTS_NAME="${APPLICATION_INSIGHTS_NAME:-${APP_NAME}-ai}"
+STORAGE_MODE="${STORAGE_MODE:-new}"
+LOG_ANALYTICS_MODE="${LOG_ANALYTICS_MODE:-new}"
+APPINSIGHTS_MODE="${APPINSIGHTS_MODE:-new}"
+
+if [[ "$SKIP_INFRA" != "true" && "$STORAGE_MODE" == "existing" ]]; then
+  storage_is_cross_scope="false"
+
+  if [[ -n "${STORAGE_ACCOUNT_RESOURCE_ID:-}" ]]; then
+    storage_is_cross_scope="true"
+  fi
+
+  if [[ -n "${STORAGE_RESOURCE_GROUP:-}" && "$STORAGE_RESOURCE_GROUP" != "$RESOURCE_GROUP" ]]; then
+    storage_is_cross_scope="true"
+  fi
+
+  if [[ -n "${STORAGE_SUBSCRIPTION_ID:-}" && "$STORAGE_SUBSCRIPTION_ID" != "$CURRENT_SUBSCRIPTION_ID" ]]; then
+    storage_is_cross_scope="true"
+  fi
+
+  if [[ "$storage_is_cross_scope" == "true" && -z "${DEPLOYMENT_CONTAINER_NAME:-}" ]]; then
+    echo "When STORAGE_MODE=existing and the storage account is outside the deployment resource group or subscription, DEPLOYMENT_CONTAINER_NAME must be set and the blob container must already exist." >&2
+    exit 1
+  fi
+fi
 
 if [[ "$SKIP_INFRA" != "true" ]]; then
   echo "Creating or updating resource group..."
@@ -158,9 +197,23 @@ if [[ "$SKIP_INFRA" != "true" ]]; then
       functionAppName="$APP_NAME" \
       functionAppRuntime="python" \
       functionAppRuntimeVersion="$PYTHON_VERSION" \
+      storageMode="$STORAGE_MODE" \
       storageAccountName="$STORAGE_ACCOUNT" \
+      storageSubscriptionId="${STORAGE_SUBSCRIPTION_ID:-}" \
+      storageResourceGroup="${STORAGE_RESOURCE_GROUP:-}" \
+      storageAccountResourceId="${STORAGE_ACCOUNT_RESOURCE_ID:-}" \
+      deploymentContainerName="${DEPLOYMENT_CONTAINER_NAME:-}" \
+      logAnalyticsMode="$LOG_ANALYTICS_MODE" \
       logAnalyticsName="$LOG_ANALYTICS_NAME" \
+      logAnalyticsSubscriptionId="${LOG_ANALYTICS_SUBSCRIPTION_ID:-}" \
+      logAnalyticsResourceGroup="${LOG_ANALYTICS_RESOURCE_GROUP:-}" \
+      logAnalyticsResourceId="${LOG_ANALYTICS_RESOURCE_ID:-}" \
+      appInsightsMode="$APPINSIGHTS_MODE" \
       applicationInsightsName="$APPLICATION_INSIGHTS_NAME" \
+      applicationInsightsSubscriptionId="${APPLICATION_INSIGHTS_SUBSCRIPTION_ID:-}" \
+      applicationInsightsResourceGroup="${APPLICATION_INSIGHTS_RESOURCE_GROUP:-}" \
+      applicationInsightsResourceId="${APPLICATION_INSIGHTS_RESOURCE_ID:-}" \
+      applicationInsightsConnectionString="${APPLICATION_INSIGHTS_CONNECTION_STRING:-}" \
       acmeEmail="$ACME_EMAIL" \
       acmeDomains="$ACME_DOMAINS" \
       acmeDirectoryUrl="${ACME_DIRECTORY_URL:-https://acme-v02.api.letsencrypt.org/directory}" \

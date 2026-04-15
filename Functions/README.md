@@ -79,10 +79,10 @@ The button above provisions the Azure resources from this ARM template:
 The ARM deployment creates:
 
 - Flex Consumption Function App (`FC1`)
-- Storage account used by Azure Functions
-- Deployment blob container
-- Log Analytics workspace
-- Application Insights instance
+- Storage account used by Azure Functions, either newly created or existing
+- Deployment blob container in the selected storage account
+- Log Analytics workspace, either newly created or existing
+- Application Insights instance, either newly created or existing
 - System-assigned managed identity
 - Automatic role assignment for the managed DNS zone used by challenges
 - Automatic role assignment for the target Key Vault certificate import scope
@@ -100,9 +100,17 @@ See `azuredeploy.parameters.example.json` for a full example. The main parameter
 - `location`
 - `functionPlanName`
 - `functionAppName`
+- `storageMode`: `new` or `existing`
 - `storageAccountName`
+- `storageSubscriptionId`, `storageResourceGroup`, `storageAccountResourceId` for existing storage
+- `deploymentContainerName` to override the default deployment container name
+- `logAnalyticsMode`: `new` or `existing`
 - `logAnalyticsName`
+- `logAnalyticsSubscriptionId`, `logAnalyticsResourceGroup`, `logAnalyticsResourceId` for an existing workspace
+- `appInsightsMode`: `new` or `existing`
 - `applicationInsightsName`
+- `applicationInsightsSubscriptionId`, `applicationInsightsResourceGroup`, `applicationInsightsResourceId` for an existing Application Insights resource
+- `applicationInsightsConnectionString` if you prefer to reuse an existing Application Insights resource without an ARM resource reference
 - `acmeEmail`
 - `acmeDomains`
 - `azureKeyVaultUrl`
@@ -114,6 +122,50 @@ See `azuredeploy.parameters.example.json` for a full example. The main parameter
 - `keyVaultResourceGroup` when the Key Vault is not in the same resource group as the Function App deployment
 - `keyVaultSubscriptionId` when the Key Vault is in another subscription
 - `dnsZoneResourceId` and `keyVaultResourceId` only when you need to override the computed scopes
+
+Notes for existing resources:
+
+- Existing Log Analytics is only used when `appInsightsMode` is `new` and `logAnalyticsMode` is `existing`.
+- If the existing storage account is in another resource group or subscription, the template reuses the deployment container name but does not create that blob container for you. Create it first, then pass the same `deploymentContainerName`.
+
+### Minimal Portal Example For `existing` Mode
+
+If you click the Deploy to Azure button and want to reuse an existing storage account and an existing Application Insights resource, these are the minimum fields to fill in the portal form:
+
+```text
+location = japaneast
+functionPlanName = cert-renewal-fc-plan
+functionAppName = cert-renewal-func-app
+
+storageMode = existing
+storageAccountName = sharedfuncstorage
+storageResourceGroup = shared-platform-rg
+storageAccountResourceId = /subscriptions/<sub>/resourceGroups/shared-platform-rg/providers/Microsoft.Storage/storageAccounts/sharedfuncstorage
+deploymentContainerName = app-package-cert-renewal
+
+appInsightsMode = existing
+applicationInsightsName = shared-ai
+applicationInsightsResourceId = /subscriptions/<sub>/resourceGroups/monitoring-rg/providers/Microsoft.Insights/components/shared-ai
+applicationInsightsConnectionString =
+
+logAnalyticsMode = existing
+logAnalyticsName = shared-logs
+logAnalyticsResourceId =
+
+acmeEmail = your-email@example.com
+acmeDomains = example.com,*.example.com
+azureKeyVaultUrl = https://your-keyvault.vault.azure.net/
+azureCertificateName = your-ssl-certificate
+dnsSubscriptionId = <dns-subscription-id>
+dnsResourceGroup = your-dns-resource-group
+dnsZoneName = example.com
+```
+
+Portal notes:
+
+- When `appInsightsMode=existing`, the template only needs the existing Application Insights resource. `logAnalyticsMode` can stay `existing`, but its resource ID is not required in that case.
+- If the existing storage account is outside the deployment resource group or subscription, `deploymentContainerName` must already exist in that storage account.
+- Leave optional override fields empty unless you really need cross-scope override behavior.
 
 ## Deploy Script
 
@@ -140,6 +192,20 @@ Use `deploy.sh` from this folder in either of these modes:
 
 ### Optional Environment Variables
 
+- `STORAGE_MODE`
+- `STORAGE_SUBSCRIPTION_ID`
+- `STORAGE_RESOURCE_GROUP`
+- `STORAGE_ACCOUNT_RESOURCE_ID`
+- `DEPLOYMENT_CONTAINER_NAME`
+- `LOG_ANALYTICS_MODE`
+- `LOG_ANALYTICS_SUBSCRIPTION_ID`
+- `LOG_ANALYTICS_RESOURCE_GROUP`
+- `LOG_ANALYTICS_RESOURCE_ID`
+- `APPINSIGHTS_MODE`
+- `APPLICATION_INSIGHTS_SUBSCRIPTION_ID`
+- `APPLICATION_INSIGHTS_RESOURCE_GROUP`
+- `APPLICATION_INSIGHTS_RESOURCE_ID`
+- `APPLICATION_INSIGHTS_CONNECTION_STRING`
 - `DNS_SUBSCRIPTION_ID`
 - `DNS_CHALLENGE_ZONE_NAME`
 - `DNS_CHALLENGE_RESOURCE_GROUP`
@@ -172,6 +238,25 @@ export DNS_ZONE_NAME="example.com"
 	--location japaneast \
 	--app-name your-cert-renewal-func \
 	--storage-account yourfuncstorage123
+```
+
+Example using existing storage and monitoring resources:
+
+```bash
+export STORAGE_MODE="existing"
+export STORAGE_RESOURCE_GROUP="shared-platform-rg"
+export STORAGE_ACCOUNT_RESOURCE_ID="/subscriptions/<sub>/resourceGroups/shared-platform-rg/providers/Microsoft.Storage/storageAccounts/sharedfuncstorage"
+export LOG_ANALYTICS_MODE="existing"
+export LOG_ANALYTICS_RESOURCE_ID="/subscriptions/<sub>/resourceGroups/monitoring-rg/providers/Microsoft.OperationalInsights/workspaces/shared-logs"
+export APPINSIGHTS_MODE="existing"
+export APPLICATION_INSIGHTS_RESOURCE_ID="/subscriptions/<sub>/resourceGroups/monitoring-rg/providers/Microsoft.Insights/components/shared-ai"
+export DEPLOYMENT_CONTAINER_NAME="app-package-cert-renewal"
+
+./deploy.sh \
+  --resource-group your-functions-rg \
+  --location japaneast \
+  --app-name your-cert-renewal-func \
+  --storage-account sharedfuncstorage
 ```
 
 Code-only publish after a portal-based ARM deployment:

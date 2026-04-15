@@ -17,14 +17,56 @@
     "functionAppRuntimeVersion": {
       "value": "3.12"
     },
+    "storageMode": {
+      "value": "new"
+    },
     "storageAccountName": {
       "value": "certrenewalfuncsa"
+    },
+    "storageSubscriptionId": {
+      "value": ""
+    },
+    "storageResourceGroup": {
+      "value": ""
+    },
+    "storageAccountResourceId": {
+      "value": ""
+    },
+    "deploymentContainerName": {
+      "value": ""
+    },
+    "logAnalyticsMode": {
+      "value": "new"
     },
     "logAnalyticsName": {
       "value": "cert-renewal-logs"
     },
+    "logAnalyticsSubscriptionId": {
+      "value": ""
+    },
+    "logAnalyticsResourceGroup": {
+      "value": ""
+    },
+    "logAnalyticsResourceId": {
+      "value": ""
+    },
+    "appInsightsMode": {
+      "value": "new"
+    },
     "applicationInsightsName": {
       "value": "cert-renewal-ai"
+    },
+    "applicationInsightsSubscriptionId": {
+      "value": ""
+    },
+    "applicationInsightsResourceGroup": {
+      "value": ""
+    },
+    "applicationInsightsResourceId": {
+      "value": ""
+    },
+    "applicationInsightsConnectionString": {
+      "value": ""
     },
     "acmeEmail": {
       "value": "your-email@example.com"

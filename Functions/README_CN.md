@@ -65,10 +65,10 @@ Function App 身份至少需要：
 ARM 部署会创建：
 
 - Flex Consumption Function App（`FC1`）
-- Azure Functions 运行所需的 Storage Account
-- 用于代码部署的 Blob 容器
-- Log Analytics Workspace
-- Application Insights
+- Azure Functions 运行所需的 Storage Account，可新建也可复用现有资源
+- 所选 Storage Account 中用于代码部署的 Blob 容器
+- Log Analytics Workspace，可新建也可复用现有资源
+- Application Insights，可新建也可复用现有资源
 - System-assigned Managed Identity
 - 自动为 challenge 使用的 DNS 区域授予角色
 - 自动为目标 Key Vault 授予证书导入角色
@@ -86,9 +86,17 @@ ARM 部署会创建：
 - `location`
 - `functionPlanName`
 - `functionAppName`
+- `storageMode`：`new` 或 `existing`
 - `storageAccountName`
+- `storageSubscriptionId`、`storageResourceGroup`、`storageAccountResourceId`：复用现有 Storage 时使用
+- `deploymentContainerName`：覆盖默认 deployment 容器名
+- `logAnalyticsMode`：`new` 或 `existing`
 - `logAnalyticsName`
+- `logAnalyticsSubscriptionId`、`logAnalyticsResourceGroup`、`logAnalyticsResourceId`：复用现有 Workspace 时使用
+- `appInsightsMode`：`new` 或 `existing`
 - `applicationInsightsName`
+- `applicationInsightsSubscriptionId`、`applicationInsightsResourceGroup`、`applicationInsightsResourceId`：复用现有 Application Insights 时使用
+- `applicationInsightsConnectionString`：如果不想通过 ARM 资源引用现有 AI，可直接传连接串
 - `acmeEmail`
 - `acmeDomains`
 - `azureKeyVaultUrl`
@@ -100,6 +108,50 @@ ARM 部署会创建：
 - `keyVaultResourceGroup`：当 Key Vault 不在当前部署资源组时填写
 - `keyVaultSubscriptionId`：当 Key Vault 位于其他订阅时填写
 - `dnsZoneResourceId` 和 `keyVaultResourceId`：只有在你想手工覆盖自动计算范围时才需要填写
+
+复用现有资源时的说明：
+
+- 只有在 `appInsightsMode` 为 `new` 且 `logAnalyticsMode` 为 `existing` 时，才会使用现有 Log Analytics Workspace。
+- 如果现有 Storage Account 位于其他资源组或其他订阅，模板会复用你指定的 deployment container 名称，但不会替你创建这个 blob container。需要先手工创建，再传同一个 `deploymentContainerName`。
+
+### Portal 中 `existing` 模式最小填写示例
+
+如果你点的是 Deploy to Azure 按钮，并且想复用现有 Storage Account 和现有 Application Insights，Portal 里最少可以按下面这样填：
+
+```text
+location = japaneast
+functionPlanName = cert-renewal-fc-plan
+functionAppName = cert-renewal-func-app
+
+storageMode = existing
+storageAccountName = sharedfuncstorage
+storageResourceGroup = shared-platform-rg
+storageAccountResourceId = /subscriptions/<sub>/resourceGroups/shared-platform-rg/providers/Microsoft.Storage/storageAccounts/sharedfuncstorage
+deploymentContainerName = app-package-cert-renewal
+
+appInsightsMode = existing
+applicationInsightsName = shared-ai
+applicationInsightsResourceId = /subscriptions/<sub>/resourceGroups/monitoring-rg/providers/Microsoft.Insights/components/shared-ai
+applicationInsightsConnectionString =
+
+logAnalyticsMode = existing
+logAnalyticsName = shared-logs
+logAnalyticsResourceId =
+
+acmeEmail = your-email@example.com
+acmeDomains = example.com,*.example.com
+azureKeyVaultUrl = https://your-keyvault.vault.azure.net/
+azureCertificateName = your-ssl-certificate
+dnsSubscriptionId = <dns-subscription-id>
+dnsResourceGroup = your-dns-resource-group
+dnsZoneName = example.com
+```
+
+Portal 填写说明：
+
+- 当 `appInsightsMode=existing` 时，模板真正需要的是现有的 Application Insights 资源；这时 `logAnalyticsMode` 可以保留为 `existing`，但通常不需要再填 `logAnalyticsResourceId`。
+- 如果现有 Storage Account 不在当前部署资源组或订阅内，`deploymentContainerName` 对应的 blob container 必须提前存在。
+- 其他 override 类型参数没有特殊需求时保持为空即可。
 
 ## 部署脚本
 
@@ -126,6 +178,20 @@ ARM 部署会创建：
 
 ### 可选环境变量
 
+- `STORAGE_MODE`
+- `STORAGE_SUBSCRIPTION_ID`
+- `STORAGE_RESOURCE_GROUP`
+- `STORAGE_ACCOUNT_RESOURCE_ID`
+- `DEPLOYMENT_CONTAINER_NAME`
+- `LOG_ANALYTICS_MODE`
+- `LOG_ANALYTICS_SUBSCRIPTION_ID`
+- `LOG_ANALYTICS_RESOURCE_GROUP`
+- `LOG_ANALYTICS_RESOURCE_ID`
+- `APPINSIGHTS_MODE`
+- `APPLICATION_INSIGHTS_SUBSCRIPTION_ID`
+- `APPLICATION_INSIGHTS_RESOURCE_GROUP`
+- `APPLICATION_INSIGHTS_RESOURCE_ID`
+- `APPLICATION_INSIGHTS_CONNECTION_STRING`
 - `DNS_SUBSCRIPTION_ID`
 - `DNS_CHALLENGE_ZONE_NAME`
 - `DNS_CHALLENGE_RESOURCE_GROUP`
@@ -158,6 +224,25 @@ export DNS_ZONE_NAME="example.com"
   --location japaneast \
   --app-name your-cert-renewal-func \
   --storage-account yourfuncstorage123
+```
+
+复用现有 Storage 和监控资源的示例：
+
+```bash
+export STORAGE_MODE="existing"
+export STORAGE_RESOURCE_GROUP="shared-platform-rg"
+export STORAGE_ACCOUNT_RESOURCE_ID="/subscriptions/<sub>/resourceGroups/shared-platform-rg/providers/Microsoft.Storage/storageAccounts/sharedfuncstorage"
+export LOG_ANALYTICS_MODE="existing"
+export LOG_ANALYTICS_RESOURCE_ID="/subscriptions/<sub>/resourceGroups/monitoring-rg/providers/Microsoft.OperationalInsights/workspaces/shared-logs"
+export APPINSIGHTS_MODE="existing"
+export APPLICATION_INSIGHTS_RESOURCE_ID="/subscriptions/<sub>/resourceGroups/monitoring-rg/providers/Microsoft.Insights/components/shared-ai"
+export DEPLOYMENT_CONTAINER_NAME="app-package-cert-renewal"
+
+./deploy.sh \
+  --resource-group your-functions-rg \
+  --location japaneast \
+  --app-name your-cert-renewal-func \
+  --storage-account sharedfuncstorage
 ```
 
 如果资源已经通过 Portal 按钮部署完成，只发布代码即可：

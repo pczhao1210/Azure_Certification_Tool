@@ -7,7 +7,8 @@
       "defaultValue": "[resourceGroup().location]"
     },
     "functionPlanName": {
-      "type": "string"
+      "type": "string",
+      "defaultValue": "[concat(parameters('functionAppName'), '-plan')]"
     },
     "functionAppName": {
       "type": "string"
@@ -20,14 +21,84 @@
       "type": "string",
       "defaultValue": "3.12"
     },
+    "storageMode": {
+      "type": "string",
+      "defaultValue": "new",
+      "allowedValues": [
+        "new",
+        "existing"
+      ]
+    },
     "storageAccountName": {
       "type": "string"
     },
+    "storageSubscriptionId": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "storageResourceGroup": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "storageAccountResourceId": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "deploymentContainerName": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "logAnalyticsMode": {
+      "type": "string",
+      "defaultValue": "new",
+      "allowedValues": [
+        "new",
+        "existing"
+      ]
+    },
     "logAnalyticsName": {
-      "type": "string"
+      "type": "string",
+      "defaultValue": "[concat(parameters('functionAppName'), '-logs')]"
+    },
+    "logAnalyticsSubscriptionId": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "logAnalyticsResourceGroup": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "logAnalyticsResourceId": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "appInsightsMode": {
+      "type": "string",
+      "defaultValue": "new",
+      "allowedValues": [
+        "new",
+        "existing"
+      ]
     },
     "applicationInsightsName": {
-      "type": "string"
+      "type": "string",
+      "defaultValue": "[concat(parameters('functionAppName'), '-ai')]"
+    },
+    "applicationInsightsSubscriptionId": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "applicationInsightsResourceGroup": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "applicationInsightsResourceId": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "applicationInsightsConnectionString": {
+      "type": "string",
+      "defaultValue": ""
     },
     "acmeEmail": {
       "type": "string"
@@ -143,10 +214,21 @@
   },
   "variables": {
     "resourceToken": "[toLower(uniqueString(subscription().id, resourceGroup().name, parameters('location'), parameters('functionAppName')))]",
-    "deploymentStorageContainerName": "[concat('app-package-', take(parameters('functionAppName'), 16), '-', take(variables('resourceToken'), 7))]",
+    "effectiveDeploymentContainerName": "[if(empty(parameters('deploymentContainerName')), concat('app-package-', take(parameters('functionAppName'), 16), '-', take(variables('resourceToken'), 7)), parameters('deploymentContainerName'))]",
     "storageBlobDataOwnerRoleDefinitionId": "b7e6dc6d-f1e8-4753-8033-0f276bb0955b",
     "dnsZoneContributorRoleDefinitionId": "befefa01-2a29-4197-83a8-272ff33ce314",
     "keyVaultCertificatesOfficerRoleDefinitionId": "a4417e6f-fecd-4de8-b567-7b0420556985",
+    "effectiveStorageSubscriptionId": "[if(empty(parameters('storageSubscriptionId')), subscription().subscriptionId, parameters('storageSubscriptionId'))]",
+    "effectiveStorageResourceGroup": "[if(empty(parameters('storageResourceGroup')), resourceGroup().name, parameters('storageResourceGroup'))]",
+    "effectiveStorageAccountResourceId": "[if(empty(parameters('storageAccountResourceId')), resourceId(variables('effectiveStorageSubscriptionId'), variables('effectiveStorageResourceGroup'), 'Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('storageAccountResourceId'))]",
+    "storageContainerManagedByTemplate": "[or(equals(parameters('storageMode'), 'new'), and(not(empty(parameters('storageAccountResourceId'))), startsWith(toLower(parameters('storageAccountResourceId')), toLower(concat(resourceGroup().id, '/providers/Microsoft.Storage/storageAccounts/')))), and(empty(parameters('storageAccountResourceId')), equals(variables('effectiveStorageSubscriptionId'), subscription().subscriptionId), equals(toLower(variables('effectiveStorageResourceGroup')), toLower(resourceGroup().name))))]",
+    "effectiveLogAnalyticsSubscriptionId": "[if(empty(parameters('logAnalyticsSubscriptionId')), subscription().subscriptionId, parameters('logAnalyticsSubscriptionId'))]",
+    "effectiveLogAnalyticsResourceGroup": "[if(empty(parameters('logAnalyticsResourceGroup')), resourceGroup().name, parameters('logAnalyticsResourceGroup'))]",
+    "effectiveLogAnalyticsResourceId": "[if(empty(parameters('logAnalyticsResourceId')), resourceId(variables('effectiveLogAnalyticsSubscriptionId'), variables('effectiveLogAnalyticsResourceGroup'), 'Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsName')), parameters('logAnalyticsResourceId'))]",
+    "effectiveAppInsightsSubscriptionId": "[if(empty(parameters('applicationInsightsSubscriptionId')), subscription().subscriptionId, parameters('applicationInsightsSubscriptionId'))]",
+    "effectiveAppInsightsResourceGroup": "[if(empty(parameters('applicationInsightsResourceGroup')), resourceGroup().name, parameters('applicationInsightsResourceGroup'))]",
+    "effectiveAppInsightsResourceId": "[if(empty(parameters('applicationInsightsResourceId')), resourceId(variables('effectiveAppInsightsSubscriptionId'), variables('effectiveAppInsightsResourceGroup'), 'Microsoft.Insights/components', parameters('applicationInsightsName')), parameters('applicationInsightsResourceId'))]",
+    "effectiveAppInsightsConnectionString": "[if(empty(parameters('applicationInsightsConnectionString')), reference(variables('effectiveAppInsightsResourceId'), '2020-02-02').ConnectionString, parameters('applicationInsightsConnectionString'))]",
     "effectiveDnsSubscriptionId": "[if(empty(parameters('dnsSubscriptionId')), subscription().subscriptionId, parameters('dnsSubscriptionId'))]",
     "effectiveDnsChallengeResourceGroup": "[if(empty(parameters('dnsChallengeResourceGroup')), parameters('dnsResourceGroup'), parameters('dnsChallengeResourceGroup'))]",
     "effectiveDnsZoneName": "[if(empty(parameters('dnsChallengeZoneName')), parameters('dnsZoneName'), parameters('dnsChallengeZoneName'))]",
@@ -159,6 +241,7 @@
   },
   "resources": [
     {
+      "condition": "[and(equals(parameters('appInsightsMode'), 'new'), equals(parameters('logAnalyticsMode'), 'new'))]",
       "type": "Microsoft.OperationalInsights/workspaces",
       "apiVersion": "2023-09-01",
       "name": "[parameters('logAnalyticsName')]",
@@ -174,6 +257,7 @@
       }
     },
     {
+      "condition": "[equals(parameters('appInsightsMode'), 'new')]",
       "type": "Microsoft.Insights/components",
       "apiVersion": "2020-02-02",
       "name": "[parameters('applicationInsightsName')]",
@@ -181,13 +265,12 @@
       "kind": "web",
       "properties": {
         "Application_Type": "web",
-        "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsName'))]"
+        "WorkspaceResourceId": "[if(equals(parameters('logAnalyticsMode'), 'new'), resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsName')), variables('effectiveLogAnalyticsResourceId'))]"
       },
-      "dependsOn": [
-        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsName'))]"
-      ]
+      "dependsOn": "[if(equals(parameters('logAnalyticsMode'), 'new'), createArray(resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsName'))), createArray())]"
     },
     {
+      "condition": "[equals(parameters('storageMode'), 'new')]",
       "type": "Microsoft.Storage/storageAccounts",
       "apiVersion": "2024-01-01",
       "name": "[parameters('storageAccountName')]",
@@ -206,6 +289,7 @@
       }
     },
     {
+      "condition": "[equals(parameters('storageMode'), 'new')]",
       "type": "Microsoft.Storage/storageAccounts/blobServices",
       "apiVersion": "2024-01-01",
       "name": "[format('{0}/{1}', parameters('storageAccountName'), 'default')]",
@@ -214,15 +298,14 @@
       ]
     },
     {
+      "condition": "[variables('storageContainerManagedByTemplate')]",
       "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
       "apiVersion": "2024-01-01",
-      "name": "[format('{0}/{1}/{2}', parameters('storageAccountName'), 'default', variables('deploymentStorageContainerName'))]",
+      "name": "[format('{0}/{1}/{2}', parameters('storageAccountName'), 'default', variables('effectiveDeploymentContainerName'))]",
       "properties": {
         "publicAccess": "None"
       },
-      "dependsOn": [
-        "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]"
-      ]
+      "dependsOn": "[if(equals(parameters('storageMode'), 'new'), createArray(resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')), createArray())]"
     },
     {
       "type": "Microsoft.Web/serverfarms",
@@ -255,7 +338,7 @@
           "deployment": {
             "storage": {
               "type": "blobContainer",
-              "value": "[concat(reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))).primaryEndpoints.blob, variables('deploymentStorageContainerName'))]",
+              "value": "[concat(reference(variables('effectiveStorageAccountResourceId')).primaryEndpoints.blob, variables('effectiveDeploymentContainerName'))]",
               "authentication": {
                 "type": "SystemAssignedIdentity"
               }
@@ -278,7 +361,7 @@
             },
             {
               "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
-              "value": "[reference(resourceId('Microsoft.Insights/components', parameters('applicationInsightsName')), '2020-02-02').ConnectionString]"
+              "value": "[variables('effectiveAppInsightsConnectionString')]"
             },
             {
               "name": "ACME_EMAIL",
@@ -359,25 +442,19 @@
           ]
         }
       },
-      "dependsOn": [
-        "[resourceId('Microsoft.Web/serverfarms', parameters('functionPlanName'))]",
-        "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
-        "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', parameters('storageAccountName'), 'default', variables('deploymentStorageContainerName'))]",
-        "[resourceId('Microsoft.Insights/components', parameters('applicationInsightsName'))]"
-      ]
+      "dependsOn": "[union(createArray(resourceId('Microsoft.Web/serverfarms', parameters('functionPlanName'))), if(variables('storageContainerManagedByTemplate'), createArray(resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', parameters('storageAccountName'), 'default', variables('effectiveDeploymentContainerName'))), createArray()), if(equals(parameters('appInsightsMode'), 'new'), createArray(resourceId('Microsoft.Insights/components', parameters('applicationInsightsName'))), createArray()))]"
     },
     {
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
-      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), variables('storageBlobDataOwnerRoleDefinitionId'))]",
-      "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+      "name": "[guid(variables('effectiveStorageAccountResourceId'), variables('storageBlobDataOwnerRoleDefinitionId'))]",
+      "scope": "[variables('effectiveStorageAccountResourceId')]",
       "properties": {
         "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('storageBlobDataOwnerRoleDefinitionId'))]",
         "principalId": "[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2024-04-01', 'Full').identity.principalId]",
         "principalType": "ServicePrincipal"
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
         "[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]"
       ]
     },
@@ -421,9 +498,33 @@
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2024-04-01', 'Full').identity.principalId]"
     },
+    "storageMode": {
+      "type": "string",
+      "value": "[parameters('storageMode')]"
+    },
+    "storageAccountScope": {
+      "type": "string",
+      "value": "[variables('effectiveStorageAccountResourceId')]"
+    },
     "deploymentStorageContainer": {
       "type": "string",
-      "value": "[variables('deploymentStorageContainerName')]"
+      "value": "[variables('effectiveDeploymentContainerName')]"
+    },
+    "appInsightsMode": {
+      "type": "string",
+      "value": "[parameters('appInsightsMode')]"
+    },
+    "applicationInsightsScope": {
+      "type": "string",
+      "value": "[variables('effectiveAppInsightsResourceId')]"
+    },
+    "logAnalyticsMode": {
+      "type": "string",
+      "value": "[parameters('logAnalyticsMode')]"
+    },
+    "logAnalyticsScope": {
+      "type": "string",
+      "value": "[variables('effectiveLogAnalyticsResourceId')]"
     },
     "dnsRoleAssignmentScope": {
       "type": "string",
