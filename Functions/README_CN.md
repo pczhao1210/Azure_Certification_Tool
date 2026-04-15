@@ -18,10 +18,11 @@
 - `cert_renewal.py`：独立的证书续期逻辑
 - `host.json`：Functions 主机配置
 - `requirements.txt`：Python 依赖
-- `local.settings.json.example`：本地调试配置模板
+- `local.settings.json.example`：本地 Azure Functions 主机配置模板
+- `settings.json`：Functions 唯一使用的业务配置文件，由 `deploy.sh` 自动生成模板
 - `azuredeploy.json`：Azure 资源 ARM 模板
 - `azuredeploy.parameters.example.json`：ARM 参数示例
-- `deploy.sh`：ARM 资源部署和代码发布脚本
+- `deploy.sh`：Functions 代码上传脚本
 
 ## 所需 Azure 权限
 
@@ -30,9 +31,9 @@ Function App 身份至少需要：
 - Azure DNS 区域所在资源组上的 `DNS Zone Contributor`
 - Key Vault 上的 `Key Vault Certificates Officer` 或等效证书导入权限
 
-## 必需应用设置
+## 必需配置
 
-在 Function App 的应用设置中至少配置：
+Function 现在直接从 `settings.json` 读取配置，不再依赖环境变量，也不再从 `local.settings.json` 读取业务配置：
 
 - `ACME_EMAIL`
 - `ACME_DOMAINS`
@@ -44,8 +45,8 @@ Function App 身份至少需要：
 
 ## 本地运行
 
-1. 将 `local.settings.json.example` 复制为 `local.settings.json`
-2. 填入配置项
+1. 如果要在本地启动 Azure Functions host，将 `local.settings.json.example` 复制为 `local.settings.json`
+2. 准备并填写 `settings.json`
 3. 安装 `requirements.txt` 中的依赖
 4. 在本目录运行 Azure Functions Core Tools
 
@@ -73,11 +74,15 @@ ARM 部署会创建：
 - 自动为 challenge 使用的 DNS 区域授予角色
 - 自动为目标 Key Vault 授予证书导入角色
 
-如果你是通过 Portal 按钮先完成资源创建，之后用下面命令发布 Functions 代码：
+如果你是通过 Portal 按钮先完成资源创建，之后运行下面命令上传 Functions 代码：
 
 ```bash
-./deploy.sh --skip-infra --resource-group your-functions-rg --app-name your-cert-renewal-func
+./deploy.sh --resource-group your-functions-rg --app-name your-cert-renewal-func
 ```
+
+如果当前目录没有 `settings.json`，脚本会先生成一个默认模板并立即退出。你需要先手工改好这个文件，再重新执行上传。
+
+上传成功后，Function 运行时直接读取包内的 `settings.json`。如果你后续想修改配置，可以在 Azure Portal 的文件编辑界面里直接修改这个文件；但要注意，下次重新执行 `deploy.sh` 时，线上文件会被本地上传包覆盖。
 
 ## ARM 参数
 
@@ -97,10 +102,7 @@ ARM 部署会创建：
 - `applicationInsightsName`
 - `applicationInsightsSubscriptionId`、`applicationInsightsResourceGroup`、`applicationInsightsResourceId`：复用现有 Application Insights 时使用
 - `applicationInsightsConnectionString`：如果不想通过 ARM 资源引用现有 AI，可直接传连接串
-- `acmeEmail`
-- `acmeDomains`
 - `azureKeyVaultUrl`
-- `azureCertificateName`
 - `dnsSubscriptionId`
 - `dnsResourceGroup`
 - `dnsZoneName`
@@ -138,10 +140,7 @@ logAnalyticsMode = existing
 logAnalyticsName = shared-logs
 logAnalyticsResourceId =
 
-acmeEmail = your-email@example.com
-acmeDomains = example.com,*.example.com
 azureKeyVaultUrl = https://your-keyvault.vault.azure.net/
-azureCertificateName = your-ssl-certificate
 dnsSubscriptionId = <dns-subscription-id>
 dnsResourceGroup = your-dns-resource-group
 dnsZoneName = example.com
@@ -155,101 +154,48 @@ Portal 填写说明：
 
 ## 部署脚本
 
-本目录下的 `deploy.sh` 支持两种模式：
+本目录下的 `deploy.sh` 只做两件事：
 
-1. 先用 ARM 创建资源，再自动发布代码
-2. 仅向已创建的 Function App 发布代码
+1. 如果当前目录没有 `settings.json`，先生成默认模板并退出
+2. 在 `settings.json` 已存在时，打包并上传 Functions 代码和该配置文件
 
 ### 前置要求
 
 1. Azure CLI 2.60.0 或更高版本
 2. 本地已安装 `zip`
 3. 已通过 `az login` 登录 Azure
-4. 如果要由脚本同时执行 ARM 部署，需要提前准备证书续期所需环境变量
-
-### 必需环境变量
-
-- `ACME_EMAIL`
-- `ACME_DOMAINS`
-- `AZURE_KEY_VAULT_URL`
-- `AZURE_CERTIFICATE_NAME`
-- `DNS_RESOURCE_GROUP`
-- `DNS_ZONE_NAME`
-
-### 可选环境变量
-
-- `STORAGE_MODE`
-- `STORAGE_SUBSCRIPTION_ID`
-- `STORAGE_RESOURCE_GROUP`
-- `STORAGE_ACCOUNT_RESOURCE_ID`
-- `DEPLOYMENT_CONTAINER_NAME`
-- `LOG_ANALYTICS_MODE`
-- `LOG_ANALYTICS_SUBSCRIPTION_ID`
-- `LOG_ANALYTICS_RESOURCE_GROUP`
-- `LOG_ANALYTICS_RESOURCE_ID`
-- `APPINSIGHTS_MODE`
-- `APPLICATION_INSIGHTS_SUBSCRIPTION_ID`
-- `APPLICATION_INSIGHTS_RESOURCE_GROUP`
-- `APPLICATION_INSIGHTS_RESOURCE_ID`
-- `APPLICATION_INSIGHTS_CONNECTION_STRING`
-- `DNS_SUBSCRIPTION_ID`
-- `DNS_CHALLENGE_ZONE_NAME`
-- `DNS_CHALLENGE_RESOURCE_GROUP`
-- `RENEWAL_DAYS_BEFORE_EXPIRY`
-- `SAVE_LOCAL_CERTS`
-- `CERT_OUTPUT_DIR`
-- `PFX_PASSWORD`
-- `ACME_VALIDATION_TIMEOUT`
-- `DNS_PROPAGATION_TIMEOUT`
-- `DNS_PROPAGATION_INTERVAL`
-- `DNS_PROPAGATION_STABLE_SECONDS`
-- `PUBLIC_DNS_SERVERS`
-- `DNS_ZONE_RESOURCE_ID`
-- `KEY_VAULT_RESOURCE_ID`
 
 ### 示例
 
 ```bash
 chmod +x deploy.sh
-
-export ACME_EMAIL="your-email@example.com"
-export ACME_DOMAINS="example.com,*.example.com"
-export AZURE_KEY_VAULT_URL="https://your-keyvault.vault.azure.net/"
-export AZURE_CERTIFICATE_NAME="your-ssl-certificate"
-export DNS_RESOURCE_GROUP="your-dns-resource-group"
-export DNS_ZONE_NAME="example.com"
-
 ./deploy.sh \
   --resource-group your-functions-rg \
-  --location japaneast \
-  --app-name your-cert-renewal-func \
-  --storage-account yourfuncstorage123
+  --app-name your-cert-renewal-func
 ```
 
-复用现有 Storage 和监控资源的示例：
+脚本第一次运行时会生成一个默认的 `settings.json`，例如：
 
-```bash
-export STORAGE_MODE="existing"
-export STORAGE_RESOURCE_GROUP="shared-platform-rg"
-export STORAGE_ACCOUNT_RESOURCE_ID="/subscriptions/<sub>/resourceGroups/shared-platform-rg/providers/Microsoft.Storage/storageAccounts/sharedfuncstorage"
-export LOG_ANALYTICS_MODE="existing"
-export LOG_ANALYTICS_RESOURCE_ID="/subscriptions/<sub>/resourceGroups/monitoring-rg/providers/Microsoft.OperationalInsights/workspaces/shared-logs"
-export APPINSIGHTS_MODE="existing"
-export APPLICATION_INSIGHTS_RESOURCE_ID="/subscriptions/<sub>/resourceGroups/monitoring-rg/providers/Microsoft.Insights/components/shared-ai"
-export DEPLOYMENT_CONTAINER_NAME="app-package-cert-renewal"
-
-./deploy.sh \
-  --resource-group your-functions-rg \
-  --location japaneast \
-  --app-name your-cert-renewal-func \
-  --storage-account sharedfuncstorage
+```json
+{
+  "ACME_EMAIL": "your-email@example.com",
+  "ACME_DOMAINS": "example.com,*.example.com",
+  "AZURE_KEY_VAULT_URL": "https://your-keyvault.vault.azure.net/",
+  "AZURE_CERTIFICATE_NAME": "your-ssl-certificate",
+  "DNS_SUBSCRIPTION_ID": "your-subscription-id",
+  "DNS_RESOURCE_GROUP": "your-dns-resource-group",
+  "DNS_ZONE_NAME": "example.com"
+}
 ```
 
-如果资源已经通过 Portal 按钮部署完成，只发布代码即可：
+你需要手工修改这个文件，然后重新运行 `deploy.sh`。脚本会把 `settings.json` 一起上传，Function 运行时直接读取它。
 
-```bash
-./deploy.sh --skip-infra --resource-group your-functions-rg --app-name your-cert-renewal-func
-```
+### Portal 部署后的实际流程
+
+1. 先点击 Deploy to Azure，只部署 infra 和授权资源
+2. 第一次运行 `deploy.sh`，生成默认 `settings.json`
+3. 手工修改 `settings.json`
+4. 再次运行 `deploy.sh`，上传代码和 `settings.json`
 
 ### 可选角色赋权
 

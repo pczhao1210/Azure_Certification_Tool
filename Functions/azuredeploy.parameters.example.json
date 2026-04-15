@@ -68,20 +68,8 @@
     "applicationInsightsConnectionString": {
       "value": ""
     },
-    "acmeEmail": {
-      "value": "your-email@example.com"
-    },
-    "acmeDomains": {
-      "value": "example.com,*.example.com"
-    },
-    "acmeDirectoryUrl": {
-      "value": "https://acme-v02.api.letsencrypt.org/directory"
-    },
     "azureKeyVaultUrl": {
       "value": "https://your-keyvault.vault.azure.net/"
-    },
-    "azureCertificateName": {
-      "value": "your-ssl-certificate"
     },
     "dnsSubscriptionId": {
       "value": "00000000-0000-0000-0000-000000000000"
@@ -97,33 +85,6 @@
     },
     "dnsChallengeResourceGroup": {
       "value": ""
-    },
-    "renewalDaysBeforeExpiry": {
-      "value": 30
-    },
-    "saveLocalCerts": {
-      "value": false
-    },
-    "certOutputDir": {
-      "value": "/tmp/certificates"
-    },
-    "pfxPassword": {
-      "value": "change-this-password"
-    },
-    "acmeValidationTimeout": {
-      "value": 900
-    },
-    "dnsPropagationTimeout": {
-      "value": 900
-    },
-    "dnsPropagationInterval": {
-      "value": 15
-    },
-    "dnsPropagationStableSeconds": {
-      "value": 90
-    },
-    "publicDnsServers": {
-      "value": "8.8.8.8,1.1.1.1,9.9.9.9,208.67.222.222"
     },
     "maximumInstanceCount": {
       "value": 40

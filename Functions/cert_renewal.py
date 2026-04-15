@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from pathlib import Path
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -19,6 +20,7 @@ import josepy as jose
 
 
 logger = logging.getLogger(__name__)
+SETTINGS_FILE_NAMES = ("settings.json",)
 
 ISRG_ROOT_X1 = """-----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
@@ -57,16 +59,32 @@ def _split_csv(value: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
-def _get_bool(name: str, default: bool) -> bool:
-    value = os.getenv(name)
+def _get_bool(value: str | None, default: bool) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _get_int(name: str, default: int) -> int:
-    value = os.getenv(name)
+def _get_int(value: str | None, default: int) -> int:
     return int(value) if value else default
+
+
+def _load_raw_settings() -> dict[str, str]:
+    settings_dir = Path(__file__).resolve().parent
+    for file_name in SETTINGS_FILE_NAMES:
+        settings_path = settings_dir / file_name
+        if not settings_path.exists():
+            continue
+
+        with settings_path.open("r", encoding="utf-8") as file_handle:
+            raw_data = json.load(file_handle)
+
+        if not isinstance(raw_data, dict):
+            raise ValueError("settings.json must contain a JSON object")
+        return {key: "" if value is None else str(value) for key, value in raw_data.items()}
+
+    searched = ", ".join(SETTINGS_FILE_NAMES)
+    raise FileNotFoundError(f"Missing configuration file. Expected: {searched}")
 
 
 @dataclass
@@ -93,39 +111,40 @@ class RenewalSettings:
 
 
 def load_settings() -> RenewalSettings:
+    raw_settings = _load_raw_settings()
     required = {
-        "ACME_EMAIL": os.getenv("ACME_EMAIL"),
-        "ACME_DOMAINS": os.getenv("ACME_DOMAINS"),
-        "AZURE_KEY_VAULT_URL": os.getenv("AZURE_KEY_VAULT_URL"),
-        "AZURE_CERTIFICATE_NAME": os.getenv("AZURE_CERTIFICATE_NAME"),
-        "DNS_SUBSCRIPTION_ID": os.getenv("DNS_SUBSCRIPTION_ID"),
-        "DNS_RESOURCE_GROUP": os.getenv("DNS_RESOURCE_GROUP"),
-        "DNS_ZONE_NAME": os.getenv("DNS_ZONE_NAME"),
+        "ACME_EMAIL": raw_settings.get("ACME_EMAIL"),
+        "ACME_DOMAINS": raw_settings.get("ACME_DOMAINS"),
+        "AZURE_KEY_VAULT_URL": raw_settings.get("AZURE_KEY_VAULT_URL"),
+        "AZURE_CERTIFICATE_NAME": raw_settings.get("AZURE_CERTIFICATE_NAME"),
+        "DNS_SUBSCRIPTION_ID": raw_settings.get("DNS_SUBSCRIPTION_ID"),
+        "DNS_RESOURCE_GROUP": raw_settings.get("DNS_RESOURCE_GROUP"),
+        "DNS_ZONE_NAME": raw_settings.get("DNS_ZONE_NAME"),
     }
     missing = [name for name, value in required.items() if not value]
     if missing:
-        raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
+        raise ValueError(f"Missing required settings in configuration file: {', '.join(missing)}")
 
     return RenewalSettings(
         acme_email=required["ACME_EMAIL"] or "",
         acme_domains=_split_csv(required["ACME_DOMAINS"] or ""),
-        acme_directory_url=os.getenv("ACME_DIRECTORY_URL", "https://acme-v02.api.letsencrypt.org/directory"),
+        acme_directory_url=raw_settings.get("ACME_DIRECTORY_URL") or "https://acme-v02.api.letsencrypt.org/directory",
         key_vault_url=required["AZURE_KEY_VAULT_URL"] or "",
         certificate_name=required["AZURE_CERTIFICATE_NAME"] or "",
         dns_subscription_id=required["DNS_SUBSCRIPTION_ID"] or "",
         dns_resource_group=required["DNS_RESOURCE_GROUP"] or "",
         dns_zone_name=required["DNS_ZONE_NAME"] or "",
-        dns_challenge_zone_name=os.getenv("DNS_CHALLENGE_ZONE_NAME"),
-        dns_challenge_resource_group=os.getenv("DNS_CHALLENGE_RESOURCE_GROUP"),
-        renewal_days_before_expiry=_get_int("RENEWAL_DAYS_BEFORE_EXPIRY", 30),
-        save_local_certs=_get_bool("SAVE_LOCAL_CERTS", False),
-        cert_output_dir=os.getenv("CERT_OUTPUT_DIR", "/tmp/certificates"),
-        pfx_password=os.getenv("PFX_PASSWORD"),
-        acme_validation_timeout=_get_int("ACME_VALIDATION_TIMEOUT", 900),
-        dns_propagation_timeout=_get_int("DNS_PROPAGATION_TIMEOUT", 900),
-        dns_propagation_interval=_get_int("DNS_PROPAGATION_INTERVAL", 15),
-        dns_propagation_stable_seconds=_get_int("DNS_PROPAGATION_STABLE_SECONDS", 90),
-        public_dns_servers=_split_csv(os.getenv("PUBLIC_DNS_SERVERS", "8.8.8.8,1.1.1.1,9.9.9.9,208.67.222.222")),
+        dns_challenge_zone_name=raw_settings.get("DNS_CHALLENGE_ZONE_NAME") or None,
+        dns_challenge_resource_group=raw_settings.get("DNS_CHALLENGE_RESOURCE_GROUP") or None,
+        renewal_days_before_expiry=_get_int(raw_settings.get("RENEWAL_DAYS_BEFORE_EXPIRY"), 30),
+        save_local_certs=_get_bool(raw_settings.get("SAVE_LOCAL_CERTS"), False),
+        cert_output_dir=raw_settings.get("CERT_OUTPUT_DIR") or "/tmp/certificates",
+        pfx_password=raw_settings.get("PFX_PASSWORD") or None,
+        acme_validation_timeout=_get_int(raw_settings.get("ACME_VALIDATION_TIMEOUT"), 900),
+        dns_propagation_timeout=_get_int(raw_settings.get("DNS_PROPAGATION_TIMEOUT"), 900),
+        dns_propagation_interval=_get_int(raw_settings.get("DNS_PROPAGATION_INTERVAL"), 15),
+        dns_propagation_stable_seconds=_get_int(raw_settings.get("DNS_PROPAGATION_STABLE_SECONDS"), 90),
+        public_dns_servers=_split_csv(raw_settings.get("PUBLIC_DNS_SERVERS") or "8.8.8.8,1.1.1.1,9.9.9.9,208.67.222.222"),
     )
 
 

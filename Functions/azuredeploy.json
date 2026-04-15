@@ -100,20 +100,7 @@
       "type": "string",
       "defaultValue": ""
     },
-    "acmeEmail": {
-      "type": "string"
-    },
-    "acmeDomains": {
-      "type": "string"
-    },
-    "acmeDirectoryUrl": {
-      "type": "string",
-      "defaultValue": "https://acme-v02.api.letsencrypt.org/directory"
-    },
     "azureKeyVaultUrl": {
-      "type": "string"
-    },
-    "azureCertificateName": {
       "type": "string"
     },
     "dnsSubscriptionId": {
@@ -133,42 +120,6 @@
     "dnsChallengeResourceGroup": {
       "type": "string",
       "defaultValue": ""
-    },
-    "renewalDaysBeforeExpiry": {
-      "type": "int",
-      "defaultValue": 30
-    },
-    "saveLocalCerts": {
-      "type": "bool",
-      "defaultValue": false
-    },
-    "certOutputDir": {
-      "type": "string",
-      "defaultValue": "/tmp/certificates"
-    },
-    "pfxPassword": {
-      "type": "securestring",
-      "defaultValue": ""
-    },
-    "acmeValidationTimeout": {
-      "type": "int",
-      "defaultValue": 900
-    },
-    "dnsPropagationTimeout": {
-      "type": "int",
-      "defaultValue": 900
-    },
-    "dnsPropagationInterval": {
-      "type": "int",
-      "defaultValue": 15
-    },
-    "dnsPropagationStableSeconds": {
-      "type": "int",
-      "defaultValue": 90
-    },
-    "publicDnsServers": {
-      "type": "string",
-      "defaultValue": "8.8.8.8,1.1.1.1,9.9.9.9,208.67.222.222"
     },
     "maximumInstanceCount": {
       "type": "int",
@@ -364,24 +315,12 @@
               "value": "[variables('effectiveAppInsightsConnectionString')]"
             },
             {
-              "name": "ACME_EMAIL",
-              "value": "[parameters('acmeEmail')]"
-            },
-            {
-              "name": "ACME_DOMAINS",
-              "value": "[parameters('acmeDomains')]"
-            },
-            {
               "name": "ACME_DIRECTORY_URL",
-              "value": "[parameters('acmeDirectoryUrl')]"
+              "value": "https://acme-v02.api.letsencrypt.org/directory"
             },
             {
               "name": "AZURE_KEY_VAULT_URL",
               "value": "[parameters('azureKeyVaultUrl')]"
-            },
-            {
-              "name": "AZURE_CERTIFICATE_NAME",
-              "value": "[parameters('azureCertificateName')]"
             },
             {
               "name": "DNS_SUBSCRIPTION_ID",
@@ -405,39 +344,39 @@
             },
             {
               "name": "RENEWAL_DAYS_BEFORE_EXPIRY",
-              "value": "[string(parameters('renewalDaysBeforeExpiry'))]"
+              "value": "30"
             },
             {
               "name": "SAVE_LOCAL_CERTS",
-              "value": "[string(parameters('saveLocalCerts'))]"
+              "value": "false"
             },
             {
               "name": "CERT_OUTPUT_DIR",
-              "value": "[parameters('certOutputDir')]"
+              "value": "/tmp/certificates"
             },
             {
               "name": "PFX_PASSWORD",
-              "value": "[parameters('pfxPassword')]"
+              "value": ""
             },
             {
               "name": "ACME_VALIDATION_TIMEOUT",
-              "value": "[string(parameters('acmeValidationTimeout'))]"
+              "value": "900"
             },
             {
               "name": "DNS_PROPAGATION_TIMEOUT",
-              "value": "[string(parameters('dnsPropagationTimeout'))]"
+              "value": "900"
             },
             {
               "name": "DNS_PROPAGATION_INTERVAL",
-              "value": "[string(parameters('dnsPropagationInterval'))]"
+              "value": "15"
             },
             {
               "name": "DNS_PROPAGATION_STABLE_SECONDS",
-              "value": "[string(parameters('dnsPropagationStableSeconds'))]"
+              "value": "90"
             },
             {
               "name": "PUBLIC_DNS_SERVERS",
-              "value": "[parameters('publicDnsServers')]"
+              "value": "8.8.8.8,1.1.1.1,9.9.9.9,208.67.222.222"
             }
           ]
         }

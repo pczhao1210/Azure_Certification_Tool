@@ -1,5 +1,6 @@
 # Configuration files with sensitive data
 config.json
+Functions/settings.json
 
 # Python
 __pycache__/

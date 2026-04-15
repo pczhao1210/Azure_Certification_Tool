@@ -2,25 +2,6 @@
   "IsEncrypted": false,
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
-    "FUNCTIONS_WORKER_RUNTIME": "python",
-    "ACME_EMAIL": "your-email@example.com",
-    "ACME_DOMAINS": "example.com,*.example.com",
-    "ACME_DIRECTORY_URL": "https://acme-v02.api.letsencrypt.org/directory",
-    "AZURE_KEY_VAULT_URL": "https://your-keyvault.vault.azure.net/",
-    "AZURE_CERTIFICATE_NAME": "your-ssl-certificate",
-    "DNS_SUBSCRIPTION_ID": "your-subscription-id",
-    "DNS_RESOURCE_GROUP": "your-dns-resource-group",
-    "DNS_ZONE_NAME": "example.com",
-    "DNS_CHALLENGE_ZONE_NAME": "",
-    "DNS_CHALLENGE_RESOURCE_GROUP": "",
-    "RENEWAL_DAYS_BEFORE_EXPIRY": "30",
-    "SAVE_LOCAL_CERTS": "false",
-    "CERT_OUTPUT_DIR": "/tmp/certificates",
-    "PFX_PASSWORD": "",
-    "ACME_VALIDATION_TIMEOUT": "900",
-    "DNS_PROPAGATION_TIMEOUT": "900",
-    "DNS_PROPAGATION_INTERVAL": "15",
-    "DNS_PROPAGATION_STABLE_SECONDS": "90",
-    "PUBLIC_DNS_SERVERS": "8.8.8.8,1.1.1.1,9.9.9.9,208.67.222.222"
+    "FUNCTIONS_WORKER_RUNTIME": "python"
   }
 }

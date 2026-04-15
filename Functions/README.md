@@ -18,10 +18,11 @@ This folder contains a standalone Azure Functions implementation for renewing a 
 - `cert_renewal.py`: Standalone renewal implementation
 - `host.json`: Functions host configuration
 - `requirements.txt`: Python dependencies
-- `local.settings.json.example`: Local development settings template
+- `local.settings.json.example`: Local Azure Functions host settings template
+- `settings.json`: The only business configuration file used by the Function; `deploy.sh` generates a default template
 - `azuredeploy.json`: ARM template for provisioning Azure resources
 - `azuredeploy.parameters.example.json`: ARM parameter example
-- `deploy.sh`: ARM deployment and code publish helper
+- `deploy.sh`: Function code upload helper
 
 ## Required Azure Permissions
 
@@ -30,9 +31,9 @@ The Function App identity needs:
 - `DNS Zone Contributor` on the Azure DNS zone resource group
 - `Key Vault Certificates Officer` or equivalent certificate import permission on the Key Vault
 
-## Required App Settings
+## Required Configuration
 
-Configure these in the Function App settings:
+The Function now reads configuration directly from `settings.json`. It no longer uses environment variables and no longer falls back to `local.settings.json` for business settings:
 
 - `ACME_EMAIL`
 - `ACME_DOMAINS`
@@ -58,8 +59,8 @@ Optional settings:
 
 ## Local Run
 
-1. Copy `local.settings.json.example` to `local.settings.json`
-2. Fill in the values
+1. If you want to start the Azure Functions host locally, copy `local.settings.json.example` to `local.settings.json`
+2. Prepare and edit `settings.json`
 3. Install dependencies from `requirements.txt`
 4. Run Azure Functions Core Tools from this folder
 
@@ -87,11 +88,15 @@ The ARM deployment creates:
 - Automatic role assignment for the managed DNS zone used by challenges
 - Automatic role assignment for the target Key Vault certificate import scope
 
-After the portal deployment finishes, publish the function code with:
+After the portal deployment finishes, upload the function code with:
 
 ```bash
-./deploy.sh --skip-infra --resource-group your-functions-rg --app-name your-cert-renewal-func
+./deploy.sh --resource-group your-functions-rg --app-name your-cert-renewal-func
 ```
+
+If `settings.json` does not exist yet, the script creates a default template and exits immediately. Edit that file first, then rerun the upload.
+
+After a successful upload, the Function reads the packaged `settings.json` directly at runtime. If you later want to change configuration, you can edit that file through the Azure Portal file UI, but remember that a future `deploy.sh` upload will overwrite the remote file with your local packaged version.
 
 ## ARM Parameters
 
@@ -111,10 +116,7 @@ See `azuredeploy.parameters.example.json` for a full example. The main parameter
 - `applicationInsightsName`
 - `applicationInsightsSubscriptionId`, `applicationInsightsResourceGroup`, `applicationInsightsResourceId` for an existing Application Insights resource
 - `applicationInsightsConnectionString` if you prefer to reuse an existing Application Insights resource without an ARM resource reference
-- `acmeEmail`
-- `acmeDomains`
 - `azureKeyVaultUrl`
-- `azureCertificateName`
 - `dnsSubscriptionId`
 - `dnsResourceGroup`
 - `dnsZoneName`
@@ -152,10 +154,7 @@ logAnalyticsMode = existing
 logAnalyticsName = shared-logs
 logAnalyticsResourceId =
 
-acmeEmail = your-email@example.com
-acmeDomains = example.com,*.example.com
 azureKeyVaultUrl = https://your-keyvault.vault.azure.net/
-azureCertificateName = your-ssl-certificate
 dnsSubscriptionId = <dns-subscription-id>
 dnsResourceGroup = your-dns-resource-group
 dnsZoneName = example.com
@@ -169,101 +168,48 @@ Portal notes:
 
 ## Deploy Script
 
-Use `deploy.sh` from this folder in either of these modes:
+`deploy.sh` only does two things:
 
-1. Provision infrastructure with ARM and then publish code
-2. Publish code only to an already provisioned Function App
+1. If `settings.json` does not exist, generate a default template and stop
+2. If `settings.json` exists, package and upload the Functions code together with that file
 
 ### Prerequisites
 
 1. Azure CLI 2.60.0 or later
 2. `zip` installed locally
 3. Logged in with `az login`
-4. Environment variables prepared for the certificate renewal settings when you want the script to also run the ARM deployment
-
-### Required Environment Variables
-
-- `ACME_EMAIL`
-- `ACME_DOMAINS`
-- `AZURE_KEY_VAULT_URL`
-- `AZURE_CERTIFICATE_NAME`
-- `DNS_RESOURCE_GROUP`
-- `DNS_ZONE_NAME`
-
-### Optional Environment Variables
-
-- `STORAGE_MODE`
-- `STORAGE_SUBSCRIPTION_ID`
-- `STORAGE_RESOURCE_GROUP`
-- `STORAGE_ACCOUNT_RESOURCE_ID`
-- `DEPLOYMENT_CONTAINER_NAME`
-- `LOG_ANALYTICS_MODE`
-- `LOG_ANALYTICS_SUBSCRIPTION_ID`
-- `LOG_ANALYTICS_RESOURCE_GROUP`
-- `LOG_ANALYTICS_RESOURCE_ID`
-- `APPINSIGHTS_MODE`
-- `APPLICATION_INSIGHTS_SUBSCRIPTION_ID`
-- `APPLICATION_INSIGHTS_RESOURCE_GROUP`
-- `APPLICATION_INSIGHTS_RESOURCE_ID`
-- `APPLICATION_INSIGHTS_CONNECTION_STRING`
-- `DNS_SUBSCRIPTION_ID`
-- `DNS_CHALLENGE_ZONE_NAME`
-- `DNS_CHALLENGE_RESOURCE_GROUP`
-- `RENEWAL_DAYS_BEFORE_EXPIRY`
-- `SAVE_LOCAL_CERTS`
-- `CERT_OUTPUT_DIR`
-- `PFX_PASSWORD`
-- `ACME_VALIDATION_TIMEOUT`
-- `DNS_PROPAGATION_TIMEOUT`
-- `DNS_PROPAGATION_INTERVAL`
-- `DNS_PROPAGATION_STABLE_SECONDS`
-- `PUBLIC_DNS_SERVERS`
-- `DNS_ZONE_RESOURCE_ID`
-- `KEY_VAULT_RESOURCE_ID`
 
 ### Example
 
 ```bash
 chmod +x deploy.sh
-
-export ACME_EMAIL="your-email@example.com"
-export ACME_DOMAINS="example.com,*.example.com"
-export AZURE_KEY_VAULT_URL="https://your-keyvault.vault.azure.net/"
-export AZURE_CERTIFICATE_NAME="your-ssl-certificate"
-export DNS_RESOURCE_GROUP="your-dns-resource-group"
-export DNS_ZONE_NAME="example.com"
-
-./deploy.sh \
-	--resource-group your-functions-rg \
-	--location japaneast \
-	--app-name your-cert-renewal-func \
-	--storage-account yourfuncstorage123
-```
-
-Example using existing storage and monitoring resources:
-
-```bash
-export STORAGE_MODE="existing"
-export STORAGE_RESOURCE_GROUP="shared-platform-rg"
-export STORAGE_ACCOUNT_RESOURCE_ID="/subscriptions/<sub>/resourceGroups/shared-platform-rg/providers/Microsoft.Storage/storageAccounts/sharedfuncstorage"
-export LOG_ANALYTICS_MODE="existing"
-export LOG_ANALYTICS_RESOURCE_ID="/subscriptions/<sub>/resourceGroups/monitoring-rg/providers/Microsoft.OperationalInsights/workspaces/shared-logs"
-export APPINSIGHTS_MODE="existing"
-export APPLICATION_INSIGHTS_RESOURCE_ID="/subscriptions/<sub>/resourceGroups/monitoring-rg/providers/Microsoft.Insights/components/shared-ai"
-export DEPLOYMENT_CONTAINER_NAME="app-package-cert-renewal"
-
 ./deploy.sh \
   --resource-group your-functions-rg \
-  --location japaneast \
-  --app-name your-cert-renewal-func \
-  --storage-account sharedfuncstorage
+	--app-name your-cert-renewal-func
 ```
 
-Code-only publish after a portal-based ARM deployment:
+On first run, the script generates a default `settings.json` such as:
 
-```bash
-./deploy.sh --skip-infra --resource-group your-functions-rg --app-name your-cert-renewal-func
+```json
+{
+	"ACME_EMAIL": "your-email@example.com",
+	"ACME_DOMAINS": "example.com,*.example.com",
+	"AZURE_KEY_VAULT_URL": "https://your-keyvault.vault.azure.net/",
+	"AZURE_CERTIFICATE_NAME": "your-ssl-certificate",
+	"DNS_SUBSCRIPTION_ID": "your-subscription-id",
+	"DNS_RESOURCE_GROUP": "your-dns-resource-group",
+	"DNS_ZONE_NAME": "example.com"
+}
 ```
+
+Edit that file manually, then rerun `deploy.sh`. The script uploads `settings.json`, and the Function reads that file directly at runtime.
+
+### Actual Flow After Portal Deployment
+
+1. Click Deploy to Azure to provision infra and RBAC only
+2. Run `deploy.sh` once to generate a default `settings.json`
+3. Edit `settings.json`
+4. Run `deploy.sh` again to upload code and `settings.json`
 
 ### Optional Role Assignment
 
