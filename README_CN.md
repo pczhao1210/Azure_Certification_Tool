@@ -4,6 +4,10 @@
 
 [English Documentation](README.md)
 
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fpczhao1210%2FAzure_Certification_Tool%2Fmain%2FFunctions%2Fazuredeploy.json)
+
+Azure Functions ARM 部署方案见 [Functions/README_CN.md](Functions/README_CN.md)。
+
 ## 功能特性
 
 - 使用DNS-01挑战自动获取Let's Encrypt证书

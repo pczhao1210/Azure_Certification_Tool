@@ -4,6 +4,10 @@ Automatically obtain Let's Encrypt SSL certificates and upload them to Azure Key
 
 [中文文档 / Chinese Documentation](README_CN.md)
 
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fpczhao1210%2FAzure_Certification_Tool%2Fmain%2FFunctions%2Fazuredeploy.json)
+
+Azure Functions ARM deployment assets are available in [Functions/README.md](Functions/README.md).
+
 ## Features
 
 - Automatically obtain Let's Encrypt certificates using DNS-01 challenge

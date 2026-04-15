@@ -1,0 +1,114 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "japaneast"
+    },
+    "functionPlanName": {
+      "value": "cert-renewal-fc-plan"
+    },
+    "functionAppName": {
+      "value": "cert-renewal-func-app"
+    },
+    "functionAppRuntime": {
+      "value": "python"
+    },
+    "functionAppRuntimeVersion": {
+      "value": "3.12"
+    },
+    "storageAccountName": {
+      "value": "certrenewalfuncsa"
+    },
+    "logAnalyticsName": {
+      "value": "cert-renewal-logs"
+    },
+    "applicationInsightsName": {
+      "value": "cert-renewal-ai"
+    },
+    "acmeEmail": {
+      "value": "your-email@example.com"
+    },
+    "acmeDomains": {
+      "value": "example.com,*.example.com"
+    },
+    "acmeDirectoryUrl": {
+      "value": "https://acme-v02.api.letsencrypt.org/directory"
+    },
+    "azureKeyVaultUrl": {
+      "value": "https://your-keyvault.vault.azure.net/"
+    },
+    "azureCertificateName": {
+      "value": "your-ssl-certificate"
+    },
+    "dnsSubscriptionId": {
+      "value": "00000000-0000-0000-0000-000000000000"
+    },
+    "dnsResourceGroup": {
+      "value": "your-dns-resource-group"
+    },
+    "dnsZoneName": {
+      "value": "example.com"
+    },
+    "dnsChallengeZoneName": {
+      "value": ""
+    },
+    "dnsChallengeResourceGroup": {
+      "value": ""
+    },
+    "renewalDaysBeforeExpiry": {
+      "value": 30
+    },
+    "saveLocalCerts": {
+      "value": false
+    },
+    "certOutputDir": {
+      "value": "/tmp/certificates"
+    },
+    "pfxPassword": {
+      "value": "change-this-password"
+    },
+    "acmeValidationTimeout": {
+      "value": 900
+    },
+    "dnsPropagationTimeout": {
+      "value": 900
+    },
+    "dnsPropagationInterval": {
+      "value": 15
+    },
+    "dnsPropagationStableSeconds": {
+      "value": 90
+    },
+    "publicDnsServers": {
+      "value": "8.8.8.8,1.1.1.1,9.9.9.9,208.67.222.222"
+    },
+    "maximumInstanceCount": {
+      "value": 40
+    },
+    "instanceMemoryMB": {
+      "value": 2048
+    },
+    "zoneRedundant": {
+      "value": false
+    },
+    "dnsZoneResourceId": {
+      "value": ""
+    },
+    "dnsRoleAssignmentEnabled": {
+      "value": true
+    },
+    "keyVaultSubscriptionId": {
+      "value": ""
+    },
+    "keyVaultResourceGroup": {
+      "value": ""
+    },
+    "keyVaultResourceId": {
+      "value": ""
+    },
+    "keyVaultRoleAssignmentEnabled": {
+      "value": true
+    }
+  }
+}
