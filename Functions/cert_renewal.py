@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from pathlib import Path
 import time
 from dataclasses import dataclass
@@ -20,7 +19,7 @@ import josepy as jose
 
 
 logger = logging.getLogger(__name__)
-SETTINGS_FILE_NAMES = ("settings.json",)
+SETTINGS_FILE_NAME = "settings.json"
 
 ISRG_ROOT_X1 = """-----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
@@ -70,21 +69,16 @@ def _get_int(value: str | None, default: int) -> int:
 
 
 def _load_raw_settings() -> dict[str, str]:
-    settings_dir = Path(__file__).resolve().parent
-    for file_name in SETTINGS_FILE_NAMES:
-        settings_path = settings_dir / file_name
-        if not settings_path.exists():
-            continue
+    settings_path = Path(__file__).resolve().parent / SETTINGS_FILE_NAME
+    if not settings_path.exists():
+        raise FileNotFoundError(f"Missing configuration file. Expected: {SETTINGS_FILE_NAME}")
 
-        with settings_path.open("r", encoding="utf-8") as file_handle:
-            raw_data = json.load(file_handle)
+    with settings_path.open("r", encoding="utf-8") as file_handle:
+        raw_data = json.load(file_handle)
 
-        if not isinstance(raw_data, dict):
-            raise ValueError("settings.json must contain a JSON object")
-        return {key: "" if value is None else str(value) for key, value in raw_data.items()}
-
-    searched = ", ".join(SETTINGS_FILE_NAMES)
-    raise FileNotFoundError(f"Missing configuration file. Expected: {searched}")
+    if not isinstance(raw_data, dict):
+        raise ValueError("settings.json must contain a JSON object")
+    return {key: "" if value is None else str(value) for key, value in raw_data.items()}
 
 
 @dataclass

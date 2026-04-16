@@ -2,8 +2,6 @@
 
 This folder contains a standalone Azure Functions implementation for renewing a Let's Encrypt certificate and importing it into Azure Key Vault.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fpczhao1210%2FAzure_Certification_Tool%2Fmain%2FFunctions%2Fazuredeploy.json)
-
 ## What It Does
 
 - Runs as a Timer Trigger once per day at 02:00 UTC
@@ -19,10 +17,10 @@ This folder contains a standalone Azure Functions implementation for renewing a 
 - `host.json`: Functions host configuration
 - `requirements.txt`: Python dependencies
 - `local.settings.json.example`: Local Azure Functions host settings template
-- `settings.json`: The only business configuration file used by the Function; `deploy.sh` generates a default template
-- `azuredeploy.json`: ARM template for provisioning Azure resources
-- `azuredeploy.parameters.example.json`: ARM parameter example
-- `deploy.sh`: Function code upload helper
+- `settings.json`: The single configuration file used both for infrastructure deployment and runtime settings
+- `azuredeploy.json`: ARM template invoked internally by `deploy.sh`
+- `azuredeploy.parameters.example.json`: ARM parameter reference example
+- `deploy.sh`: Unified deployment script for infrastructure, code, and configuration
 
 ## Required Azure Permissions
 
@@ -43,8 +41,41 @@ The Function now reads configuration directly from `settings.json`. It no longer
 - `DNS_RESOURCE_GROUP`
 - `DNS_ZONE_NAME`
 
+To avoid entering the same values twice, `settings.json` is also the input source for infrastructure deployment. Common infrastructure keys include:
+
+- `AZURE_LOCATION`
+- `AZURE_RESOURCE_GROUP`
+- `AZURE_FUNCTION_APP_NAME`
+- `AZURE_FUNCTION_PLAN_NAME`
+- `AZURE_STORAGE_MODE`
+- `AZURE_STORAGE_ACCOUNT_NAME`
+- `AZURE_LOG_ANALYTICS_MODE`
+- `AZURE_LOG_ANALYTICS_NAME`
+- `AZURE_APP_INSIGHTS_MODE`
+- `AZURE_APPLICATION_INSIGHTS_NAME`
+
 Optional settings:
 
+- `AZURE_STORAGE_SUBSCRIPTION_ID`
+- `AZURE_STORAGE_RESOURCE_GROUP`
+- `AZURE_STORAGE_ACCOUNT_RESOURCE_ID`
+- `AZURE_DEPLOYMENT_CONTAINER_NAME`
+- `AZURE_LOG_ANALYTICS_SUBSCRIPTION_ID`
+- `AZURE_LOG_ANALYTICS_RESOURCE_GROUP`
+- `AZURE_LOG_ANALYTICS_RESOURCE_ID`
+- `AZURE_APPLICATION_INSIGHTS_SUBSCRIPTION_ID`
+- `AZURE_APPLICATION_INSIGHTS_RESOURCE_GROUP`
+- `AZURE_APPLICATION_INSIGHTS_RESOURCE_ID`
+- `AZURE_APPLICATION_INSIGHTS_CONNECTION_STRING`
+- `AZURE_MAXIMUM_INSTANCE_COUNT`
+- `AZURE_INSTANCE_MEMORY_MB`
+- `AZURE_ZONE_REDUNDANT`
+- `DNS_ZONE_RESOURCE_ID`
+- `DNS_ROLE_ASSIGNMENT_ENABLED`
+- `KEY_VAULT_SUBSCRIPTION_ID`
+- `KEY_VAULT_RESOURCE_GROUP`
+- `KEY_VAULT_RESOURCE_ID`
+- `KEY_VAULT_ROLE_ASSIGNMENT_ENABLED`
 - `DNS_CHALLENGE_ZONE_NAME`
 - `DNS_CHALLENGE_RESOURCE_GROUP`
 - `RENEWAL_DAYS_BEFORE_EXPIRY`
@@ -71,107 +102,14 @@ Optional settings:
 - Timer schedule is defined in `function_app.py`
 - Current schedule: daily at 02:00 UTC
 
-## Deploy To Azure
-
-The button above provisions the Azure resources from this ARM template:
-
-- Template URL: `https://raw.githubusercontent.com/pczhao1210/Azure_Certification_Tool/main/Functions/azuredeploy.json`
-
-The ARM deployment creates:
-
-- Flex Consumption Function App (`FC1`)
-- Storage account used by Azure Functions, either newly created or existing
-- Deployment blob container in the selected storage account
-- Log Analytics workspace, either newly created or existing
-- Application Insights instance, either newly created or existing
-- System-assigned managed identity
-- Automatic role assignment for the managed DNS zone used by challenges
-- Automatic role assignment for the target Key Vault certificate import scope
-
-After the portal deployment finishes, upload the function code with:
-
-```bash
-./deploy.sh --resource-group your-functions-rg --app-name your-cert-renewal-func
-```
-
-If `settings.json` does not exist yet, the script creates a default template and exits immediately. Edit that file first, then rerun the upload.
-
-After a successful upload, the Function reads the packaged `settings.json` directly at runtime. If you later want to change configuration, you can edit that file through the Azure Portal file UI, but remember that a future `deploy.sh` upload will overwrite the remote file with your local packaged version.
-
-## ARM Parameters
-
-See `azuredeploy.parameters.example.json` for a full example. The main parameters are:
-
-- `location`
-- `functionPlanName`
-- `functionAppName`
-- `storageMode`: `new` or `existing`
-- `storageAccountName`
-- `storageSubscriptionId`, `storageResourceGroup`, `storageAccountResourceId` for existing storage
-- `deploymentContainerName` to override the default deployment container name
-- `logAnalyticsMode`: `new` or `existing`
-- `logAnalyticsName`
-- `logAnalyticsSubscriptionId`, `logAnalyticsResourceGroup`, `logAnalyticsResourceId` for an existing workspace
-- `appInsightsMode`: `new` or `existing`
-- `applicationInsightsName`
-- `applicationInsightsSubscriptionId`, `applicationInsightsResourceGroup`, `applicationInsightsResourceId` for an existing Application Insights resource
-- `applicationInsightsConnectionString` if you prefer to reuse an existing Application Insights resource without an ARM resource reference
-- `azureKeyVaultUrl`
-- `dnsSubscriptionId`
-- `dnsResourceGroup`
-- `dnsZoneName`
-- `dnsChallengeZoneName` and `dnsChallengeResourceGroup` when using a delegated challenge zone
-- `keyVaultResourceGroup` when the Key Vault is not in the same resource group as the Function App deployment
-- `keyVaultSubscriptionId` when the Key Vault is in another subscription
-- `dnsZoneResourceId` and `keyVaultResourceId` only when you need to override the computed scopes
-
-Notes for existing resources:
-
-- Existing Log Analytics is only used when `appInsightsMode` is `new` and `logAnalyticsMode` is `existing`.
-- If the existing storage account is in another resource group or subscription, the template reuses the deployment container name but does not create that blob container for you. Create it first, then pass the same `deploymentContainerName`.
-
-### Minimal Portal Example For `existing` Mode
-
-If you click the Deploy to Azure button and want to reuse an existing storage account and an existing Application Insights resource, these are the minimum fields to fill in the portal form:
-
-```text
-location = japaneast
-functionPlanName = cert-renewal-fc-plan
-functionAppName = cert-renewal-func-app
-
-storageMode = existing
-storageAccountName = sharedfuncstorage
-storageResourceGroup = shared-platform-rg
-storageAccountResourceId = /subscriptions/<sub>/resourceGroups/shared-platform-rg/providers/Microsoft.Storage/storageAccounts/sharedfuncstorage
-deploymentContainerName = app-package-cert-renewal
-
-appInsightsMode = existing
-applicationInsightsName = shared-ai
-applicationInsightsResourceId = /subscriptions/<sub>/resourceGroups/monitoring-rg/providers/Microsoft.Insights/components/shared-ai
-applicationInsightsConnectionString =
-
-logAnalyticsMode = existing
-logAnalyticsName = shared-logs
-logAnalyticsResourceId =
-
-azureKeyVaultUrl = https://your-keyvault.vault.azure.net/
-dnsSubscriptionId = <dns-subscription-id>
-dnsResourceGroup = your-dns-resource-group
-dnsZoneName = example.com
-```
-
-Portal notes:
-
-- When `appInsightsMode=existing`, the template only needs the existing Application Insights resource. `logAnalyticsMode` can stay `existing`, but its resource ID is not required in that case.
-- If the existing storage account is outside the deployment resource group or subscription, `deploymentContainerName` must already exist in that storage account.
-- Leave optional override fields empty unless you really need cross-scope override behavior.
-
 ## Deploy Script
 
-`deploy.sh` only does two things:
+`deploy.sh` now handles the full deployment workflow:
 
 1. If `settings.json` does not exist, generate a default template and stop
-2. If `settings.json` exists, package and upload the Functions code together with that file
+2. Create or update the Azure resource group from `settings.json`
+3. Invoke `azuredeploy.json` to create or update the Function App, Storage, Application Insights, Log Analytics, and role assignments
+4. Package and upload the Functions code together with `settings.json`
 
 ### Prerequisites
 
@@ -183,15 +121,19 @@ Portal notes:
 
 ```bash
 chmod +x deploy.sh
-./deploy.sh \
-  --resource-group your-functions-rg \
-	--app-name your-cert-renewal-func
+./deploy.sh
 ```
 
 On first run, the script generates a default `settings.json` such as:
 
 ```json
 {
+	"AZURE_LOCATION": "japaneast",
+	"AZURE_RESOURCE_GROUP": "your-functions-rg",
+	"AZURE_FUNCTION_APP_NAME": "your-cert-renewal-func",
+	"AZURE_FUNCTION_PLAN_NAME": "your-cert-renewal-func-plan",
+	"AZURE_STORAGE_MODE": "new",
+	"AZURE_STORAGE_ACCOUNT_NAME": "yourfuncstorageacct",
 	"ACME_EMAIL": "your-email@example.com",
 	"ACME_DOMAINS": "example.com,*.example.com",
 	"AZURE_KEY_VAULT_URL": "https://your-keyvault.vault.azure.net/",
@@ -202,18 +144,18 @@ On first run, the script generates a default `settings.json` such as:
 }
 ```
 
-Edit that file manually, then rerun `deploy.sh`. The script uploads `settings.json`, and the Function reads that file directly at runtime.
+Edit that file manually, then rerun `deploy.sh`. The script first deploys or updates the Azure resources and then uploads the code package together with `settings.json`, which the Function reads directly at runtime.
 
-### Actual Flow After Portal Deployment
+### Actual Deployment Flow
 
-1. Click Deploy to Azure to provision infra and RBAC only
-2. Run `deploy.sh` once to generate a default `settings.json`
-3. Edit `settings.json`
-4. Run `deploy.sh` again to upload code and `settings.json`
+1. Run `deploy.sh` once to generate a default `settings.json`
+2. Edit `settings.json` and fill in both infrastructure and business settings
+3. Run `deploy.sh` again
+4. The script creates or updates the resource group, deploys Azure resources, and uploads code plus configuration
 
 ### Optional Role Assignment
 
-The ARM deployment now assigns required runtime roles by default:
+The ARM deployment invoked by `deploy.sh` now assigns required runtime roles by default:
 
 - `DNS Zone Contributor` on the effective managed DNS zone scope
 - `Key Vault Certificates Officer` on the target Key Vault scope

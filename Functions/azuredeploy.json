@@ -13,14 +13,6 @@
     "functionAppName": {
       "type": "string"
     },
-    "functionAppRuntime": {
-      "type": "string",
-      "defaultValue": "python"
-    },
-    "functionAppRuntimeVersion": {
-      "type": "string",
-      "defaultValue": "3.12"
-    },
     "storageMode": {
       "type": "string",
       "defaultValue": "new",
@@ -300,8 +292,8 @@
             "instanceMemoryMB": "[parameters('instanceMemoryMB')]"
           },
           "runtime": {
-            "name": "[parameters('functionAppRuntime')]",
-            "version": "[parameters('functionAppRuntimeVersion')]"
+            "name": "python",
+            "version": "3.12"
           }
         },
         "siteConfig": {
@@ -313,70 +305,6 @@
             {
               "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
               "value": "[variables('effectiveAppInsightsConnectionString')]"
-            },
-            {
-              "name": "ACME_DIRECTORY_URL",
-              "value": "https://acme-v02.api.letsencrypt.org/directory"
-            },
-            {
-              "name": "AZURE_KEY_VAULT_URL",
-              "value": "[parameters('azureKeyVaultUrl')]"
-            },
-            {
-              "name": "DNS_SUBSCRIPTION_ID",
-              "value": "[variables('effectiveDnsSubscriptionId')]"
-            },
-            {
-              "name": "DNS_RESOURCE_GROUP",
-              "value": "[parameters('dnsResourceGroup')]"
-            },
-            {
-              "name": "DNS_ZONE_NAME",
-              "value": "[parameters('dnsZoneName')]"
-            },
-            {
-              "name": "DNS_CHALLENGE_ZONE_NAME",
-              "value": "[parameters('dnsChallengeZoneName')]"
-            },
-            {
-              "name": "DNS_CHALLENGE_RESOURCE_GROUP",
-              "value": "[variables('effectiveDnsChallengeResourceGroup')]"
-            },
-            {
-              "name": "RENEWAL_DAYS_BEFORE_EXPIRY",
-              "value": "30"
-            },
-            {
-              "name": "SAVE_LOCAL_CERTS",
-              "value": "false"
-            },
-            {
-              "name": "CERT_OUTPUT_DIR",
-              "value": "/tmp/certificates"
-            },
-            {
-              "name": "PFX_PASSWORD",
-              "value": ""
-            },
-            {
-              "name": "ACME_VALIDATION_TIMEOUT",
-              "value": "900"
-            },
-            {
-              "name": "DNS_PROPAGATION_TIMEOUT",
-              "value": "900"
-            },
-            {
-              "name": "DNS_PROPAGATION_INTERVAL",
-              "value": "15"
-            },
-            {
-              "name": "DNS_PROPAGATION_STABLE_SECONDS",
-              "value": "90"
-            },
-            {
-              "name": "PUBLIC_DNS_SERVERS",
-              "value": "8.8.8.8,1.1.1.1,9.9.9.9,208.67.222.222"
             }
           ]
         }

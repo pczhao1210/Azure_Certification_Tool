@@ -4,9 +4,7 @@
 
 [English Documentation](README.md)
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fpczhao1210%2FAzure_Certification_Tool%2Fmain%2FFunctions%2Fazuredeploy.json)
-
-Azure Functions ARM 部署方案见 [Functions/README_CN.md](Functions/README_CN.md)。
+Azure Functions 一体化部署方案见 [Functions/README_CN.md](Functions/README_CN.md)。现在统一通过 `Functions/deploy.sh` 完成 Azure 资源部署、代码上传和配置文件上传，不再使用 Deploy to Azure 按钮。
 
 ## 功能特性
 
